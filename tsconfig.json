@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES6", // 目標 ECMAScript 版本
+    "module": "commonjs", // 使用的模組系統
+    "strict": true, // 啟用所有嚴格類型檢查選項
+    "esModuleInterop": true, // 允許在 CommonJS 和 ES 模組之間互操作
+    "forceConsistentCasingInFileNames": true, // 強制檔名一致
+    "outDir": "./dist", // 編譯後的檔案輸出目錄
+    "rootDir": "./src", // 原始碼目錄
+    "resolveJsonModule": true, // 允許引入 JSON 模組
+    "skipLibCheck": true, // 跳過型別檢查
+    "baseUrl": "./src",
+    "paths": {
+      "@src/*": [
+        "*"
+      ],
+      "@components/*": [
+        "components/*"
+      ],
+      "@routes/*": [
+        "api/routes/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/api/*"
+  ], // 包含的檔案
+  "exclude": [
+    "node_modules"
+  ] // 排除的檔案
+}
