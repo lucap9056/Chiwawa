@@ -156,25 +156,25 @@ class ApplicationConfig {
             discord: new DiscordBotConfig(
                 cfg.discord?.token || process.env.DISCORD_TOKEN || "",
                 {
-                    joinSuffix: cfg.discord?.defaultMessages?.joinSuffix || "joined the channel",
-                    leaveSuffix: cfg.discord?.defaultMessages?.leaveSuffix || "leaved the channel"
+                    joinSuffix: cfg.discord?.defaultMessages?.joinSuffix || process.env.JOIN_SUFFIX || "joined the channel",
+                    leaveSuffix: cfg.discord?.defaultMessages?.leaveSuffix || process.env.LEAVE_SUFFIX || "leaved the channel"
                 },
                 new TTSEngineConfig(
-                    cfg.discord?.tts?.region || "",
-                    cfg.discord?.tts?.token || "",
-                    cfg.discord?.tts?.defaultLanguage || "en-US"
+                    cfg.discord?.tts?.region || process.env.TTS_REGION || "",
+                    cfg.discord?.tts?.token || process.env.TTS_TOKEN || "",
+                    cfg.discord?.tts?.defaultLanguage || process.env.TTS_DEFAULT_LANGUAGE || "en-US"
                 )
             ),
             database: new DatabaseConnectionConfig(
-                cfg.database?.uri || ""
+                cfg.database?.uri || process.env.DATABASE_URI || ""
             ),
             api: new APIServiceConfig(
                 cfg.api?.port || process.env.API_PORT || "80",
                 cfg.api?.redirectUri || process.env.API_REDIRECT_URI || "",
                 cfg.api?.sessionSecret || process.env.API_SECRET || "",
                 new DiscordOAuth2Config(
-                    cfg.api?.oauth2?.clientId || "",
-                    cfg.api?.oauth2?.clientSecret || ""
+                    cfg.api?.oauth2?.clientId || process.env.APP_ID || "",
+                    cfg.api?.oauth2?.clientSecret || process.env.APP_SECRET || ""
                 )
             )
         };
