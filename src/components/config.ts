@@ -171,7 +171,7 @@ class ApplicationConfig {
             api: new APIServiceConfig(
                 cfg.api?.port || process.env.API_PORT || "80",
                 cfg.api?.redirectUri || process.env.API_REDIRECT_URI || "",
-                cfg.api?.sessionSecret || process.env.API_SECRET || "",
+                cfg.api?.sessionSecret || process.env.API_SESSION_SECRET || "",
                 new DiscordOAuth2Config(
                     cfg.api?.oauth2?.clientId || process.env.APP_ID || "",
                     cfg.api?.oauth2?.clientSecret || process.env.APP_SECRET || ""
