@@ -111,6 +111,10 @@ class Bot extends Client {
                     return;
                 }
 
+                if (!config.adminIds.includes(message.author.id)) {
+                    return;
+                }
+
                 const code = crypto.randomUUID();
 
                 const redirectUrl = this.config.api.redirectUri + `?code=${code}`;
