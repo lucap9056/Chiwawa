@@ -22,7 +22,8 @@ Chiwawa is a Discord bot that sends **voice notifications** when users **join** 
 1. **Node.js** (v14 or later).
 2. **Discord Bot Token**: Obtain it from the [Discord Developer Portal](https://discord.com/developers/applications) .
 3. **Microsoft TTS Token**: Set up a TTS resource on [Microsoft Azure](https://azure.microsoft.com/)  to enable text-to-speech capabilities.
-4. **Web Server**: Since this project is backend/frontend separated, you need to set up your own web server for integration.
+4. **MongoDB** (version 3.6 or later): A MongoDB database is required for storing user data, preferences, and other application configurations. Ensure that MongoDB version 3.6 or higher is installed and running.
+5. **Web Server**: Since this project is backend/frontend separated, you need to set up your own web server for integration.
 
 ----
 ## Installation
@@ -105,7 +106,7 @@ Alternatively, you can set configuration through environment variables, which wi
 Here’s a table that explains the environment variables used in the `LoadConfig` method, their purpose, and their default values:
 
 |**Environment Variable** |**Purpose** |**Default Value** |
-|:--|
+|-|-|-|
 |`ADMINS` |List of admin user IDs (comma-separated). |`""` (empty string if not provided) |
 |`DISCORD_TOKEN` |Discord bot token to authenticate with Discord API. |`""` (empty string if not provided) |
 |`JOIN_SUFFIX` |Suffix for the join message (e.g., "joined the channel"). |`"joined the channel"` |
