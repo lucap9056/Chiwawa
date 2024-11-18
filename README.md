@@ -24,6 +24,7 @@ Chiwawa is a Discord bot that sends **voice notifications** when users **join** 
 3. **Microsoft TTS Token**: Set up a TTS resource on [Microsoft Azure](https://azure.microsoft.com/)  to enable text-to-speech capabilities.
 4. **MongoDB** (version 3.6 or later): A MongoDB database is required for storing user data, preferences, and other application configurations. Ensure that MongoDB version 3.6 or higher is installed and running.
 5. **Web Server**: Since this project is backend/frontend separated, you need to set up your own web server for integration.
+6. **FFmpeg**: FFmpeg is required for audio processing and handling voice notifications. Ensure FFmpeg is installed on your system. It is used for converting and streaming audio in various formats. You can download it from [FFmpeg's official site](https://ffmpeg.org/download.html).
 
 ----
 ## Installation
