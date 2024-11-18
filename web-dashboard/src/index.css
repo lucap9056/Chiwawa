@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Poetsen+One&family=Ubuntu:wght@400;700&display=swap');
+
+body {
+    background-color: #150e0b;
+    color: #EEE;
+    font-family: "Ubuntu", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+}
+
+input {
+    font-family: "Ubuntu", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+}
+
+button {
+    font-family: "Poetsen One", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+}
+
+.button {
+    background-color: #edcca8;
+    border: none;
+    border-radius: 3px;
+    width: 80px;
+    height: 32px;
+    font-size: 18px;
+    color: #432b1f;
+    transition-duration: 50ms;
+}
+
+.button:hover {
+    background-color: #cea981;
+}
+
+.button:active {
+    background-color: #b58e65;
+}
+
+a {
+    text-decoration: unset;
+    color: unset;
+}

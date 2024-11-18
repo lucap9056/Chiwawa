@@ -1,0 +1,82 @@
+.notification_setting {
+    position: relative;
+    width: 580px;
+    background-color: #321e18;
+    border-radius: 7px;
+    padding: 20px;
+    display: flex;
+    flex-flow: column;
+}
+
+.guild_name {
+    line-height: 32px;
+    padding: 4px 20px;
+    font-size: 18px;
+    margin-left: -30px;
+    background-color: #ffd0ae;
+    color: #321e18;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+.notification_setting form {
+    display: flex;
+    flex-flow: column;
+    margin-top: 10px;
+    gap: 10px;
+}
+
+.notification_setting_message {
+    display: flex;
+    flex-flow: row;
+    gap: 10px;
+    justify-content: center;
+}
+
+.notification_setting_message_prefix,
+.notification_setting_message_content,
+.notification_setting_message_suffix,
+.nitification_setting_message_simple {
+    height: 32px;
+    width: 280px;
+    border-radius: 3px;
+    border: none;
+    background-color: #ffd0ae;
+    outline: none;
+    color: #321e18;
+    font-weight: bold;
+    padding: 0 10px;
+    font-size: 16px;
+}
+
+.notification_setting_message_prefix,
+.notification_setting_message_suffix {
+    width: 80px;
+}
+
+.notification_setting_options {
+    display: flex;
+    flex-flow: row;
+    justify-content: center;
+    align-items: center;
+    padding: 0 30px;
+}
+
+.notification_setting_option {
+    background-color: #edcca8;
+    border: none;
+    border-radius: 3px;
+    width: 80px;
+    height: 32px;
+    font-size: 18px;
+    color: #432b1f;
+    transition-duration: 50ms;
+}
+
+.notification_setting_option:hover {
+	background-color: #cea981;
+}
+
+.notification_setting_option:active {
+	background-color: #b58e65;
+}

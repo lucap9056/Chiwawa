@@ -1,0 +1,60 @@
+.alerts {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    display: flex;
+    flex-flow: column;
+    margin: 20px;
+}
+
+.alert {
+    position: relative;
+    display: flex;
+    flex-flow: row;
+    height: 32px;
+    align-items: center;
+    background-color: #742828;
+    border-radius: 4px;
+    padding: 0 10px;
+}
+
+.alert_message {
+    margin: 0 10px;
+}
+
+.alert_button {
+    position: relative;
+    background-color: transparent;
+    color: white;
+    border: none;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+}
+
+.alert_button::before,
+.alert_button::after {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 2px;
+    background-color: transparent;
+    transition: background-color 0.3s ease;
+}
+
+.alert_button::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.alert_button::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.alert:hover .alert_button::before,
+.alert:hover .alert_button::after {
+    background-color: #ad9cff;
+}

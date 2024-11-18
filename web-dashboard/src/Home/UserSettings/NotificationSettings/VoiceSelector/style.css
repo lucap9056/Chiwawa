@@ -1,0 +1,70 @@
+
+.tts_selector {
+    width: 240px;
+    background-color: #6b4537;
+    display: flex;
+    flex-flow: row;
+    gap: 10px;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 5px;
+    margin: 0 auto;
+}
+
+.tts_selector_language {
+    padding: 0 5px;
+    background-color: #e0775f;
+    font-size: 14px;
+    height: 20px;
+    line-height: 20px;
+    border-radius: 5px;
+    user-select: none;
+}
+
+.tts_selector_voice {
+    padding: 0 5px;
+    background-color: #c0533a;
+    font-size: 14px;
+    height: 20px;
+    line-height: 20px;
+    border-radius: 5px;
+    user-select: none;
+}
+
+.tts_selector_play {
+    display: flex;
+    width: 20px;
+    height: 20px;
+    justify-content: center;
+    align-items: center;
+    font-size: 20px;
+}
+
+.tts_select_languages,
+.tts_select_voices {
+	margin: auto;
+	margin-top: -40px;
+	width: 260px;
+	background-color: #e3b98c;
+	color: #321e18;
+	font-weight: bold;
+	padding: 5px 0;
+	display: flex;
+	flex-flow: column;
+	z-index: 0;
+	max-height: 50vh;
+	overflow-y: auto;
+    border-radius: 5px;
+}
+
+.select_language,
+.select_voice {
+	background-color: transparent;
+	padding: 2px 5px;
+    user-select: none;
+}
+
+.select_language:hover,
+.select_voice:hover {
+	background-color: #c39667;
+}
