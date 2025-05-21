@@ -2,3 +2,4 @@
 /dist
 /public/assets/cover.webp
 .env
+tls
