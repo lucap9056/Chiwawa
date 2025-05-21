@@ -9,7 +9,7 @@ export default function POST_RESTART(req: Request, res: Response) {
         return res.status(HttpStatusCode.Unauthorized).end();
     }
 
-    const { config } = req.appManager;
+    const { config } = req.chiwawa;
 
     if (config.adminIds.includes(userId)) {
 

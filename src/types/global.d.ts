@@ -1,14 +1,14 @@
 import 'express';
 import 'express-session';
 
-import AppManager from "@components/appManager";
+import App from "/app";
 
-import { OAuth2, OAuthToken } from "@src/api/discordAPI";
+import { OAuth2, OAuthToken } from "api/discord-api";
 
 declare global {
     namespace Express {
         interface Request {
-            appManager: AppManager
+            chiwawa: App
             oauth2?: OAuth2
         }
     }

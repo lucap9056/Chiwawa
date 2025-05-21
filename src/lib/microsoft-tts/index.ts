@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import { TTSEngineConfig } from "@components/config";
+import { TTSEngineConfig } from "lib/config";
 
 type Language = {
     [voice: string]: string
@@ -70,7 +70,7 @@ class MicrosiftTTS {
         }).then((response) => {
             return response.data as { Locale: string, DisplayName: string, ShortName: string }[];
         }).then((languages) => {
-            
+
             languages.forEach(language => {
                 if (!this.languages[language.Locale]) {
                     this.languages[language.Locale] = {};

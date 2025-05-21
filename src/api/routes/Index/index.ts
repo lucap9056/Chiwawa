@@ -1,12 +1,12 @@
 import express from "express";
 
-import GET_LOGIN from "./get_login";
-import POST_LOGIN from "./post_login";
-import DELETE_LOGIN from "./delete_login";
-import OPTIONS_LOGIN from "./options_login";
+import GET_LOGIN from "routes/index/get_login";
+import POST_LOGIN from "routes/index/post_login";
+import DELETE_LOGIN from "routes/index/delete_login";
+import OPTIONS_LOGIN from "routes/index/options_login";
 
-import GET_INFO from "./get_info";
-import OPTIONS_INFO from "./options_info";
+import GET_INFO from "routes/index/get_info";
+import OPTIONS_INFO from "routes/index/options_info";
 
 const router = express.Router();
 

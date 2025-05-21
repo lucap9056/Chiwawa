@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { HttpStatusCode } from "axios";
 
-import AppManager from "@components/appManager";
-import ApplicationConfig, { TTSEngineConfig, DiscordBotConfig, DiscordOAuth2Config, APIServiceConfig, DatabaseConnectionConfig, DefaultMessages } from "@components/config";
+import App from "/app";
+import ApplicationConfig, { TTSEngineConfig, DiscordBotConfig, DiscordOAuth2Config, APIServiceConfig, DatabaseConnectionConfig, DefaultMessages } from "lib/config";
 
 
 function IsTTSEngineConfig(config: any): config is TTSEngineConfig {
@@ -60,7 +60,7 @@ export default async function POST_ROOT(req: Request, res: Response) {
         return res.sendStatus(HttpStatusCode.Unauthorized);
     }
 
-    const { config }: AppManager = req.appManager;
+    const { config } = req.chiwawa;
 
     const newConfig = req.body;
 

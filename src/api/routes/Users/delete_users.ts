@@ -1,9 +1,6 @@
 import { Request, Response } from "express";
 import { HttpStatusCode } from "axios";
 
-import AppManager from "@src/components/appManager";
-
-
 function ME(req: Request, res: Response) {
     const { userId } = req.session;
 
@@ -12,7 +9,7 @@ function ME(req: Request, res: Response) {
         return res.status(HttpStatusCode.Unauthorized).end();
     }
 
-    const { mongoDB }: AppManager = req.appManager;
+    const { mongoDB } = req.chiwawa;
 
     if (!mongoDB) {
         return res.status(HttpStatusCode.ServiceUnavailable).end();

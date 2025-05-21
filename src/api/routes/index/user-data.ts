@@ -1,5 +1,5 @@
-import { OAuthToken} from "@src/api/discordAPI";
-import Config from "@src/components/config";
+import { OAuthToken} from "api/discord-api";
+import Config from "lib/config";
 
 
 interface DiscordData {

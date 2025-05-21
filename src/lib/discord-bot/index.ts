@@ -1,10 +1,10 @@
 import { AudioPlayer, VoiceConnection, createAudioPlayer, createAudioResource, joinVoiceChannel, AudioPlayerStatus } from "@discordjs/voice";
-import { ActivityType, Client, GatewayIntentBits, GuildChannel, GuildMember, Message, Partials, User, VoiceState } from "discord.js";
+import { Client, GatewayIntentBits, GuildChannel, GuildMember, Message, Partials, User, VoiceState } from "discord.js";
 import { Readable } from "stream";
 
-import MicrosiftTTS, { TTSMessage } from "@components/microsoftTTS";
-import MongoDB, { MessageTemplate } from "@components/database";
-import Config from "@components/config";
+import MicrosiftTTS, { TTSMessage } from "lib/microsoft-tts";
+import MongoDB, { MessageTemplate } from "lib/database";
+import Config from "lib/config";
 
 interface TTSMessages {
     join: TTSMessage
@@ -420,12 +420,14 @@ class Connection {
 
     constructor(channel: GuildChannel) {
         this.channel = channel;
+        const channelId = channel.id;
         const guildId = channel.guild.id;
+        const adapterCreator = channel.guild.voiceAdapterCreator;
 
         const connection = joinVoiceChannel({
-            channelId: this.channel.id,
-            guildId: guildId,
-            adapterCreator: this.channel.guild.voiceAdapterCreator
+            channelId,
+            guildId,
+            adapterCreator
         });
 
         this.connection = connection;

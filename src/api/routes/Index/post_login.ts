@@ -1,10 +1,9 @@
 import { Request, Response } from "express";
 import { HttpStatusCode } from "axios";
 
-import { User, OAuth2 } from "@src/api/discordAPI";
-import AppManager from "@src/components/appManager";
+import { User, OAuth2 } from "api/discord-api";
 
-import { AdminChiwawaData, UserChiwawaData } from "./userData";
+import { AdminChiwawaData, UserChiwawaData } from "routes/index/user-data";
 
 
 export default async function POST_LOGIN(req: Request, res: Response) {
@@ -17,7 +16,7 @@ export default async function POST_LOGIN(req: Request, res: Response) {
 
     const oauth2: OAuth2 | undefined = req.oauth2;
 
-    const { config, bot }: AppManager = req.appManager;
+    const { config, bot } = req.chiwawa;
 
     const joinedGuilds = bot.joinedGuildIds;
     const ttsToken = await bot.tts.Token;

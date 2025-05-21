@@ -1,13 +1,11 @@
 import { Request, Response } from "express";
 import { HttpStatusCode } from "axios";
 
-import AppManager from "@src/components/appManager";
-
 
 export default function GET_LOGIN(req: Request, res: Response) {
 
     const { userId } = req.session;
-    const { config }: AppManager = req.appManager;
+    const { config } = req.chiwawa;
 
     if (userId) {
         return res.status(HttpStatusCode.MovedPermanently).redirect(config.api.redirectUri);

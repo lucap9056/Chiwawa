@@ -1,19 +1,10 @@
-import dotenv from "dotenv";
-import path from "path";
+import APIServer from "/lib/api-server";
+import MongoDB from "/lib/database";
+import Bot from "/lib/discord-bot";
+import Config from "/lib/config";
 
-import APIServer from "@components/apiServer";
-import MongoDB from "@components/database";
-import Bot from "@components/discordBot";
-import Config from "@components/config";
 
-interface AppManager {
-    config: Config
-    mongoDB: MongoDB
-    bot: Bot
-    apiServer?: APIServer
-}
-
-class AppManager {
+class App {
     public config: Config;
     public mongoDB: MongoDB;
     public bot: Bot;
@@ -27,7 +18,7 @@ class AppManager {
         if (config.database.isEnabled) {
             mongoDB.Init(config.database).then(() => {
                 console.log("Database Ready");
-            }).catch((err) => {
+            }).catch((err: any) => {
                 console.error(err);
                 config.database.isEnabled = false;
             });
@@ -44,11 +35,10 @@ class AppManager {
             this.apiServer = new APIServer(this);
         }
 
-        const { OptionStateText } = AppManager;
-        console.log("TTS: ", OptionStateText(config.discord.tts.isEnabled));
-        console.log("Database: " + OptionStateText(config.database.isEnabled));
-        console.log("APIServer: " + OptionStateText(config.api.isEnabled));
-        console.log("APIServer_OAuth2: " + OptionStateText(config.api.oauth2.isEnabled));
+        console.log("TTS: ", App.OptionStateText(config.discord.tts.isEnabled));
+        console.log("Database: " + App.OptionStateText(config.database.isEnabled));
+        console.log("APIServer: " + App.OptionStateText(config.api.isEnabled));
+        console.log("APIServer_OAuth2: " + App.OptionStateText(config.api.oauth2.isEnabled));
     }
 
     public static OptionStateText(option: boolean): string {
@@ -73,12 +63,12 @@ class AppManager {
 
         this.Stop().then(() => {
 
-            const newManger = new AppManager();
-            Object.assign(this, newManger);
+            const app = new App();
+            Object.assign(this, app);
 
         }).catch(console.error);
 
     }
 }
 
-export default AppManager;
+export default App;

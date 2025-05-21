@@ -4,23 +4,23 @@ import session from "express-session";
 
 import { Server } from "http";
 
-import AppManager from "@components/appManager";
+import App from "/app";
 
-import { OAuth2 } from "@src/api/discordAPI";
+import { OAuth2 } from "api/discord-api";
 
-import indexRouter from "@routes/Index";
-import appRouter from "@routes/App";
-import usersRouter from "@routes/Users";
+import indexRouter from "routes/index";
+import appRouter from "routes/app";
+import usersRouter from "routes/users";
 
 
 class APIServer {
 
     private server: Server;
 
-    constructor(appManager: AppManager) {
-        const app = express();
+    constructor(app: App) {
+        const server = express();
 
-        const { config, mongoDB } = appManager;
+        const { config, mongoDB } = app;
 
         const oauth2 = config.api.oauth2.isEnabled ?
             new OAuth2(
@@ -30,8 +30,8 @@ class APIServer {
             ) :
             undefined;
 
-        app.use((req: Request, _, next: NextFunction) => {
-            req.appManager = appManager;
+        server.use((req: Request, _, next: NextFunction) => {
+            req.chiwawa = app;
             req.oauth2 = oauth2;
             next();
         });
@@ -40,7 +40,7 @@ class APIServer {
 
         if (config.database.isEnabled) {
 
-            app.use(session({
+            server.use(session({
                 secret: config.api.sessionSecret,
                 resave: false,
                 saveUninitialized: true,
@@ -54,7 +54,7 @@ class APIServer {
 
         } else {
 
-            app.use(session({
+            server.use(session({
                 secret: config.api.sessionSecret,
                 resave: false,
                 saveUninitialized: true,
@@ -66,17 +66,17 @@ class APIServer {
             }));
         }
 
-        app.use(express.json());
+        server.use(express.json());
 
-        app.use("/", indexRouter);
+        server.use("/", indexRouter);
 
-        app.use("/app", appRouter);
+        server.use("/app", appRouter);
 
         if (mongoDB) {
-            app.use("/users", usersRouter);
+            server.use("/users", usersRouter);
         }
 
-        app.use((err: Error, _: Request, res: Response, next: NextFunction) => {
+        server.use((err: Error, _: Request, res: Response, next: NextFunction) => {
 
             console.error(err.stack || err.message);
 
@@ -85,11 +85,9 @@ class APIServer {
             next();
         });
 
-        const server = app.listen(config.api.port, () => {
+        this.server = server.listen(config.api.port, () => {
             console.log("API Server Ready");
         });
-
-        this.server = server;
     }
 
     public Close(): Promise<void> {

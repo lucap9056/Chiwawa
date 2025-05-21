@@ -1,9 +1,9 @@
 import express from "express";
 
-import GET_USERS from "./get_users";
-import POST_USERS from "./post_users";
-import DELETE_USERS from "./delete_users";
-import OPTIONS_USERS from "./options_users";
+import GET_USERS from "routes/users/get_users";
+import POST_USERS from "routes/users/post_users";
+import DELETE_USERS from "routes/users/delete_users";
+import OPTIONS_USERS from "routes/users/options_users";
 
 const router = express.Router();
 

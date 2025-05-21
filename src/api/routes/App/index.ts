@@ -1,11 +1,11 @@
 import express from "express";
 
-import GET_ROOT from "./get_root";
-import POST_ROOT from "./post_root";
-import OPTIONS_ROOT from "./options_root";
+import GET_ROOT from "routes/app/get_root";
+import POST_ROOT from "routes/app/post_root";
+import OPTIONS_ROOT from "routes/app/options_root";
 
-import POST_RESTART from "./post_restart";
-import OPTIONS_RESTART from "./options_restart";
+import POST_RESTART from "routes/app/post_restart";
+import OPTIONS_RESTART from "routes/app/options_restart";
 
 const router = express.Router();
 

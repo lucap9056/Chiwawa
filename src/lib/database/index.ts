@@ -1,8 +1,8 @@
 import { MongoClient, Collection, UpdateResult } from 'mongodb';
 import MongoStore from "connect-mongo";
 
-import { DatabaseConnectionConfig } from '@components/config';
-import { TTSMessage } from "@components/microsoftTTS";
+import { DatabaseConnectionConfig } from "lib/config";
+import { TTSMessage } from "lib/microsoft-tts";
 
 const DATABASE_NAME = "Chiwawa";
 

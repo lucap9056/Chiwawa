@@ -1,8 +1,7 @@
 import { Request, Response } from "express";
 import { HttpStatusCode } from "axios";
 
-import MongoDB, { Notification, Notifications, MessageTemplate } from "@components/database";
-import AppManager from "@src/components/appManager";
+import MongoDB, { Notification, Notifications, MessageTemplate } from "lib/database";
 
 const IsMessageTemplate = (obj: any): obj is MessageTemplate => {
     return typeof obj === 'object'
@@ -38,7 +37,7 @@ function ME(req: Request, res: Response) {
         return res.status(HttpStatusCode.Unauthorized).end();
     }
 
-    const { mongoDB }: AppManager = req.appManager;
+    const { mongoDB } = req.chiwawa;
 
     if (!mongoDB) {
         return res.status(HttpStatusCode.ServiceUnavailable).end();

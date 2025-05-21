@@ -1,11 +1,9 @@
 import { Request, Response } from "express";
 import { HttpStatusCode } from "axios";
 
-import AppManager from "@src/components/appManager";
+import OAuth2 from "api/discord-api";
 
-import OAuth2, { User } from "@src/api/discordAPI";
-
-import { UserChiwawaData, AdminChiwawaData } from "./userData";
+import { UserChiwawaData, AdminChiwawaData } from "routes/index/user-data";
 
 
 export default async function GET_INFO(req: Request, res: Response) {
@@ -15,7 +13,7 @@ export default async function GET_INFO(req: Request, res: Response) {
         return res.status(HttpStatusCode.Unauthorized).end();
     }
 
-    const { config, bot }: AppManager = req.appManager;
+    const { config, bot } = req.chiwawa;
 
     const joinedGuilds = bot.joinedGuildIds;
     const ttsToken = await bot.tts.Token;
