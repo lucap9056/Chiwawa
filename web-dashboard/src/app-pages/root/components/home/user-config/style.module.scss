@@ -1,0 +1,43 @@
+$background: linear-gradient(-50deg, #762709 0%, #be4622 100%);
+$hover-background: linear-gradient(90deg, #812612 0%, transparent 100%);
+
+.user {
+
+    display: flex;
+    flex-flow: row;
+
+
+    .guilds {
+        width: 180px;
+        display: flex;
+        flex-flow: column;
+        margin-right: -10px;
+        background: $background;
+        border-radius: 5px 0 0 5px;
+        overflow: hidden;
+
+
+        .guild {
+            padding: 0 10px;
+            background: transparent;
+            transition-duration: 125ms;
+            display: flex;
+            flex-flow: row;
+            gap: 0.5rem;
+            align-items: center;
+            font-size: 16px;
+            height: 32px;
+            border: none;
+            color: white;
+            width: 100%;
+            overflow-x: hidden;
+            text-overflow: ellipsis;
+
+
+            &:hover {
+                background: $hover-background;
+            }
+        }
+    }
+
+}

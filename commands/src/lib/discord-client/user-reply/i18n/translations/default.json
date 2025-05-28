@@ -1,0 +1,22 @@
+{
+  "common.unknownServer": "Unknown Server",
+  "common.yes": "Yes",
+  "common.no": "No",
+  "settings.guildTitle": "Settings for \"{{guild}}\"",
+  "settings.globalTitle": "Global Settings for \"{{username}}\"",
+  "settings.guildInheritDescription": "This server inherits global settings.",
+  "settings.description": "Below are your notification settings:",
+  "settings.muteStatus": "Mute Status",
+  "settings.inheritGlobal": "Inherit Global Settings",
+  "settings.suffix": "Suffix",
+  "settings.suffixDefault": "Suffix (default)",
+  "settings.joinMessageSettings": "**Join Message Settings**",
+  "settings.prefix": "Prefix",
+  "settings.content": "Content",
+  "settings.language": "Language",
+  "settings.voiceModule": "Voice Module",
+  "settings.joinPreview": "Preview",
+  "settings.leaveMessageSettings": "**Leave Message Settings**",
+  "settings.leavePreview": "Preview",
+  "settings.footer": "All unset fields will use default values or inherit global settings."
+}

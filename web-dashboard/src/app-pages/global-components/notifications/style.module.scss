@@ -1,0 +1,64 @@
+$background: #742828;
+$button-text-color: #fff;
+$button-hover-color: #ffd79c;
+
+.notifications {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    display: flex;
+    flex-flow: column;
+    margin: 1.25rem;
+}
+
+.notification {
+    position: relative;
+    display: flex;
+    flex-flow: row;
+    height: 2rem;
+    align-items: center;
+    background-color: $background;
+    border-radius: 0.25rem;
+    padding: 0 0.625rem;
+}
+
+.message {
+    margin: 0 0.625rem;
+}
+
+.button {
+    position: relative;
+    background-color: transparent;
+    color: $button-text-color;
+    border: none;
+    cursor: pointer;
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.button::before,
+.button::after {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1.25rem;
+    height: 0.125rem;
+    background-color: transparent;
+    transition: background-color 0.3s ease;
+}
+
+.button::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.button::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.notification:hover .button::before,
+.notification:hover .button::after {
+    background-color: $button-hover-color;
+}

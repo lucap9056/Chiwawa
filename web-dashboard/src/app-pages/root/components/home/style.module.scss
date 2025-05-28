@@ -1,0 +1,41 @@
+$option-color: #edcca8;
+$option-hover-color: #cea981;
+$option-active-color: #b58e65;
+$option-text-color: #432b1f;
+
+.menu {
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-flow: column;
+    gap: 0.625rem;
+
+    .options {
+        width: 12.5rem;
+        display: flex;
+        margin: 1.25rem;
+        flex-flow: column;
+        gap: 0.625rem;
+
+        .option {
+            position: relative;
+            height: 2rem;
+            width: 100%;
+            background-color: $option-color;
+            border: none;
+            border-radius: 0.1875rem;
+            font-size: 1.375rem;
+            color: $option-text-color;
+            transition-duration: 125ms;
+
+            &:hover {
+                background-color: $option-hover-color;
+            }
+
+            &:active {
+                background-color: $option-active-color;
+            }
+        }
+    }
+}

@@ -1,0 +1,50 @@
+services:
+  chiwawa:
+    image: lucap9056/chiwawa:latest
+    container_name: chiwawa_main
+    networks:
+      - chiwawa_network
+    environment:
+      APP_DISCORD_TOKEN: ${APP_DISCORD_TOKEN}
+      DEFAULT_JOIN_SUFFUX: ${DEFAULT_JOIN_SUFFUX}
+      DEFAULT_LEAVE_SUFFIX: ${DEFAULT_LEAVE_SUFFIX}
+      TTS_REGIN: ${TTS_REGIN}
+      TTS_TOKEN: ${TTS_TOKEN}
+      TTS_DEFAULT_VOICE_MODULE: ${TTS_DEFAULT_VOICE_MODULE}
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      - mongodb
+
+  chiwawa_dashboard:
+    image: lucap9056/chiwawa-dashboard:latest
+    container_name: chiwawa_dashboard
+    environment:
+      TTS_REGIN: ${TTS_REGIN}
+      TTS_TOKEN: ${TTS_TOKEN}
+      CLIENT_ID: ${CLIENT_ID}
+      CLIENT_SECRET: ${CLIENT_SECRET}
+      REDIRECT_URI: ${REDIRECT_URI}
+      DATABASE_URL: ${DATABASE_URL}
+    ports:
+      - "80:3000"
+    networks:
+      - chiwawa_network
+    depends_on:
+      - mongodb
+      - chiwawa
+  
+  mongodb:
+    image: mongo:latest
+    container_name: chiwawa_mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+    volumes:
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - ./mongodb_data:/data/db
+    networks:
+      - chiwawa_network
+
+networks:
+  chiwawa_network:

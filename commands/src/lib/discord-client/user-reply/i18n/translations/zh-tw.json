@@ -1,0 +1,22 @@
+{
+    "common.unknownServer": "未知伺服器",
+    "common.yes": "是",
+    "common.no": "否",
+    "settings.guildTitle": "\"{{guild}}\"的設定",
+    "settings.globalTitle": "\"{{username}}\"的全域設定",
+    "settings.guildInheritDescription": "此伺服器繼承全域設定。",
+    "settings.description": "以下是您的通知設定：",
+    "settings.muteStatus": "靜音狀態",
+    "settings.inheritGlobal": "繼承全域設定",
+    "settings.suffix": "後綴",
+    "settings.suffixDefault": "後綴(預設)",
+    "settings.joinMessageSettings": "**加入訊息設定**",
+    "settings.prefix": "前綴",
+    "settings.content": "內容",
+    "settings.language": "語言",
+    "settings.voiceModule": "語音模組",
+    "settings.joinPreview": "預覽",
+    "settings.leaveMessageSettings": "**離開訊息設定**",
+    "settings.leavePreview": "預覽",
+    "settings.footer": "所有未設定的欄位將使用預設值或繼承全域設定。"
+}

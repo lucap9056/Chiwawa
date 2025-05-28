@@ -1,0 +1,23 @@
+{
+    "login": {
+        "discord": "Login with Discord",
+        "description": "You need to login your Discord account to use this Chiwawa dashboard."
+    },
+    "app": {
+        "initializing": "Initializing...",
+        "save": "Save",
+        "saving": "Saving...",
+        "saved": "Saved",
+        "save-failed": "failed",
+        "logout": "Logout",
+        "back": "Back"
+    },
+    "userconfig": {
+        "global": "Global",
+        "mute": "Mute",
+        "default": "Default",
+        "remove-suffix": "Remove Suffix",
+        "inherit-global": "Inherit Global",
+        "advanced-mode": "Advanced Mode"
+    }
+}
