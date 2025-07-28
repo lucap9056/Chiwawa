@@ -2,35 +2,35 @@ import React, { useState } from "react";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faVolumeHigh } from "@fortawesome/free-solid-svg-icons";
-import { useTTS, Voice } from "app-pages/global-services/tts";
+import { useTTS, VoiceModel } from "app-pages/global-services/tts";
 
-import styles from "app-pages/root/components/home/user-config/editor/voice-selector/style.module.scss";
+import styles from "./style.module.scss";
 
 interface Props {
     message: string
-    onChange: (voice: Voice) => void
+    onChange: (voice: VoiceModel) => void
 }
 
-const VoiceSelector: React.FC<Props> = ({ message, onChange }) => {
+const VoiceModelSelector: React.FC<Props> = ({ message, onChange }) => {
     const tts = useTTS();
-    const defaultVoice = tts.getDefaultVoice();
+    const defaultVoiceModel = tts.getDefaultVoiceModel();
 
     const [languages, setLanguages] = useState<string[]>([]);
-    const [voices, setVoices] = useState<Voice[]>([]);
-    const [language, setLanguage] = useState<string>(defaultVoice.Locale);
-    const [voice, setVoice] = useState<Voice>(defaultVoice);
+    const [voiceModels, setVoiceModels] = useState<VoiceModel[]>([]);
+    const [language, setLanguage] = useState<string>(defaultVoiceModel.Locale);
+    const [voiceModel, setVoiceModel] = useState<VoiceModel>(defaultVoiceModel);
 
     const updateLanguage = (l: string) => {
-        const firstVoice = tts.getVoices(l)[0];
-        setVoice(firstVoice);
+        const firstVoice = tts.getVoiceModels(l)[0];
+        setVoiceModel(firstVoice);
         setLanguage(l);
         setLanguages([]);
         onChange(firstVoice);
     }
 
-    const updateVoice = (v: Voice) => {
-        setVoice(v);
-        setVoices([]);
+    const updateVoiceModel = (v: VoiceModel) => {
+        setVoiceModel(v);
+        setVoiceModels([]);
         onChange(v);
     }
 
@@ -38,16 +38,16 @@ const VoiceSelector: React.FC<Props> = ({ message, onChange }) => {
         setLanguages(tts.getLanguages());
     }
 
-    const showVoices = async () => {
-        setVoices(tts.getVoices(language));
+    const showVoiceModels = async () => {
+        setVoiceModels(tts.getVoiceModels(language));
     }
 
     const play = async () => {
 
-        if (voice.ShortName === "unknown") return;
+        if (voiceModel.ShortName === "unknown") return;
 
         try {
-            const blob = await tts.getVoiceBlob(voice, message);
+            const blob = await tts.getVoiceBlob(voiceModel, message);
             if (!blob) return;
             const url = URL.createObjectURL(blob);
             const audio = new Audio(url);
@@ -66,8 +66,8 @@ const VoiceSelector: React.FC<Props> = ({ message, onChange }) => {
     return <>
         <div className={styles.selector}>
             <div className={styles.language} onClick={showLanguages}>{language}</div>
-            <div className={styles.voice} onClick={showVoices}>
-                {voice.LocalName}
+            <div className={styles.voice} onClick={showVoiceModels}>
+                {voiceModel.LocalName}
             </div>
             <div className={styles.play} onClick={play}>
                 <FontAwesomeIcon icon={faVolumeHigh} />
@@ -84,10 +84,10 @@ const VoiceSelector: React.FC<Props> = ({ message, onChange }) => {
             </div>
         }
         {
-            voices.length !== 0 &&
+            voiceModels.length !== 0 &&
             <div className={styles.select_voices}>
-                {voices.map(
-                    (v) => <div key={v.DisplayName} className={styles.voice} onClick={() => updateVoice(v)}>
+                {voiceModels.map(
+                    (v) => <div key={v.DisplayName} className={styles.voice} onClick={() => updateVoiceModel(v)}>
                         {v.LocalName}
                     </div>
                 )}
@@ -96,4 +96,4 @@ const VoiceSelector: React.FC<Props> = ({ message, onChange }) => {
     </>;
 }
 
-export default VoiceSelector;
+export default VoiceModelSelector;

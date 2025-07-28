@@ -27,6 +27,14 @@ button {
   font-family: var(--font-poetsen-one);
 }
 
+button:hover {
+  scale: 1.02;
+}
+
+button:active {
+  scale: 0.97;
+}
+
 a {
   color: inherit;
   text-decoration: none;

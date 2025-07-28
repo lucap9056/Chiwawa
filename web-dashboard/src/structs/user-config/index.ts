@@ -3,7 +3,7 @@ export interface MessageTemplate {
     content: string;
     suffix?: string;
     language?: string;
-    voice?: string;
+    voiceModel?: string;
 }
 
 export const createEmptyMessage = (): MessageTemplate => ({
@@ -19,7 +19,7 @@ export interface SpeechNotice {
     leaveMessage: MessageTemplate;
 }
 
-export const createEmptySpeechNotice = (inheritGlobal: boolean = true): SpeechNotice => ({
+export const createEmptySpeechNotice = (inheritGlobal: boolean): SpeechNotice => ({
     inheritGlobal,
     muted: false,
     joinMessage: createEmptyMessage(),
@@ -34,6 +34,6 @@ export interface UserConfig {
 
 export const createEmptyUserConfig = (userId: string): UserConfig => ({
     id: userId,
-    global: createEmptySpeechNotice(),
+    global: createEmptySpeechNotice(false),
     guilds: {}
 });

@@ -1,39 +1,38 @@
 "use client";
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useRef, useEffect, useCallback } from "react";
 import { GetAccessToken } from "server/tts";
 import { IssueToken } from "structs/microsoft-tts";
 import { Profile } from "structs/profile";
-import { getOrThrow, Result, RsResult } from "structs/rs-result";
+import { Option, Result } from "resultant.js/rustify";
 
-
-export interface Voice {
-    Locale: string
-    LocalName: string
-    DisplayName: string
-    ShortName: string
+export interface VoiceModel {
+    Locale: string;
+    LocalName: string;
+    DisplayName: string;
+    ShortName: string;
 }
 
 export interface Language {
-    [LocalName: string]: Voice
+    [LocalName: string]: VoiceModel;
 }
 
 export interface Languages {
-    [Locale: string]: Language
+    [Locale: string]: Language;
 }
 
 export interface TTS {
-    awaitLoaded: () => Promise<void>
-    isLoaded: () => boolean
-    getDefaultVoice: () => Voice
-    getLanguages: () => string[]
-    getVoices: (lang: string) => Voice[]
-    getVoiceBlob: (voice: Voice, content: string) => Promise<Blob | undefined>
+    awaitLoaded: () => Promise<void>;
+    isLoaded: () => boolean;
+    getDefaultVoiceModel: () => VoiceModel;
+    getLanguages: () => string[];
+    getVoiceModels: (lang: string) => VoiceModel[];
+    getVoiceBlob: (voice: VoiceModel, content: string) => Promise<Blob | undefined>;
 }
 
 interface PreviousBlob {
-    voiceShortName: string,
-    content: string,
-    blob: Blob
+    voiceShortName: string;
+    content: string;
+    blob: Blob;
 }
 
 const DEFAULT_LANGUAGES: Languages = {
@@ -42,9 +41,9 @@ const DEFAULT_LANGUAGES: Languages = {
             Locale: "unknown",
             LocalName: "unknown",
             DisplayName: "unknown",
-            ShortName: "unknown"
-        }
-    }
+            ShortName: "",
+        },
+    },
 };
 
 const TTSContext = createContext<TTS | null>(null);
@@ -55,115 +54,172 @@ export const useTTS = (): TTS => {
         throw new Error("useTTS must be used within an TTSProvider.");
     }
     return context;
-}
+};
 
-const fetchVoiceModules = async (profile: Profile): Promise<Languages> => {
-    const { ttsAccessToken, defaultVoiceModule } = profile.appInfo;
-    const { region, token } = ttsAccessToken;
+const fetchVoiceModels = async ({ region, token }: IssueToken, defaultVoiceModelShortName: string): Promise<Languages> => {
+    if (region === "" || token === "") {
+        return { ...DEFAULT_LANGUAGES };
+    }
+
     const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`, {
         headers: {
-            "Authorization": `Bearer ${token}`
-        }
+            "Authorization": `Bearer ${token}`,
+        },
     });
 
-    const voices: Voice[] = await res.json();
+    if (!res.ok) {
+        throw new Error(`Failed to fetch voice models: ${res.statusText}`);
+    }
 
-    return voices.reduce((acc: Languages, voice: Voice) => {
-        const { Locale, DisplayName, ShortName } = voice;
+    const voiceModels: VoiceModel[] = await res.json();
+
+    return voiceModels.reduce((acc: Languages, voiceModel: VoiceModel) => {
+        const { Locale, DisplayName, ShortName } = voiceModel;
 
         if (!acc[Locale]) acc[Locale] = {};
 
-        acc[Locale][DisplayName] = voice;
+        acc[Locale][DisplayName] = voiceModel;
 
-        if (ShortName === defaultVoiceModule) {
+        if (ShortName === defaultVoiceModelShortName) {
             acc.default = {
-                default: { ...voice, LocalName: "default", DisplayName: "default" },
-            }
+                default: { ...voiceModel, LocalName: "default", DisplayName: "default" },
+            };
         }
 
         return acc;
     }, { ...DEFAULT_LANGUAGES });
-}
+};
 
-export const TTSProvider: React.FC<{ profile: Profile, children: React.ReactNode }> = ({ profile, children }) => {
-    const { ttsAccessToken } = profile.appInfo;
-    let getToken: Promise<RsResult<IssueToken>> = Result((Ok) => Ok(ttsAccessToken));
-    let languages: Languages = { ...DEFAULT_LANGUAGES };
-    let fetchVoiceBlob: Promise<Response> | undefined;
-    let previous: PreviousBlob | undefined;
-    let loaded = false;
+export const TTSProvider: React.FC<{ profile: Profile; children: React.ReactNode }> = ({ profile, children }) => {
+    const { appInfo: { config: { defaultVoiceModel }, ttsAccessToken } } = profile;
 
-    const loading = fetchVoiceModules(profile).then((langs) => {
-        languages = langs;
-    }).finally(() => {
-        loaded = true;
-    });
+    const currentToken = useRef<IssueToken>(ttsAccessToken);
+    const languages = useRef<Languages>(DEFAULT_LANGUAGES);
+    const fetchVoiceBlobPromise = useRef<Promise<Response> | undefined>(undefined);
+    const previousBlob = useRef<PreviousBlob | undefined>(undefined);
+    const isModelLoaded = useRef(false);
+    const loadingPromise = useRef<Promise<void> | undefined>(undefined);
 
-    const isLoaded = () => loaded;
+    const getToken = useCallback(async (): Promise<IssueToken> => {
+        const REFRESH_THRESHOLD_MS = 30 * 1000;
+        const now = Date.now();
+
+        const refresh = !new Option(currentToken.current).isSomeAnd(({ expiresAt }) => expiresAt - now > REFRESH_THRESHOLD_MS);
+
+        if (refresh) {
+            const result = await Result.From(GetAccessToken());
+
+            if (result.isOk()) {
+                currentToken.current = result.unwrap();
+            }
+            else {
+                const err = result.unwrapErr();
+                console.error("Failed to refresh TTS access token:", err);
+                throw err;
+            }
+        }
+
+        return currentToken.current;
+    }, []);
+
+
+    useEffect(() => {
+        const loadModels = async () => {
+            if (loadingPromise.current) return;
+
+            loadingPromise.current = (async () => {
+                try {
+                    const token = await getToken();
+                    languages.current = await fetchVoiceModels(token, defaultVoiceModel);
+                    isModelLoaded.current = true;
+                } catch (error) {
+                    console.error("Failed to load voice models:", error);
+
+                } finally {
+                    loadingPromise.current = undefined;
+                }
+            })();
+        };
+
+        loadModels();
+    }, [defaultVoiceModel]);
+
+
+    const isLoaded = () => isModelLoaded.current;
 
     const awaitLoaded = async () => {
         try {
-            await loading;
+            await loadingPromise.current;
+        } catch {
+
         }
-        catch { }
-    }
+    };
 
-    const init = async () => {
-        if (loaded) return;
-        loaded = true;
-        return fetchVoiceModules(profile).then((langs) => {
-            languages = langs;
-        });
-    }
+    const getDefaultVoiceModel = (): VoiceModel => languages.current.default.default;
 
-    const GetToken = () => getToken.then((token) => {
-        const now = new Date().getTime();
-        if (getOrThrow(token).expiresAt > now) {
-            return token;
-        }
-        return getToken = GetAccessToken();
-    });
+    const getLanguages = (): string[] => Object.keys(languages.current);
 
-    const getDefaultVoice = (): Voice => languages.default.default;
+    const getVoiceModels = (lang: string): VoiceModel[] =>
+        languages.current[lang] ? Object.values(languages.current[lang]) : [];
 
-    const getLanguages = (): string[] => Object.keys(languages);
-
-    const getVoices = (lang: string): Voice[] => languages[lang] ? Object.values(languages[lang]) : [];
-
-    const getVoiceBlob = async (voice: Voice, content: string): Promise<Blob | undefined> => {
-        if (fetchVoiceBlob !== undefined) return;
-        if (previous && voice.ShortName === previous.voiceShortName && previous.content === content) {
-            return previous.blob;
+    const getVoiceBlob = async (voice: VoiceModel, content: string): Promise<Blob | undefined> => {
+        if (fetchVoiceBlobPromise.current !== undefined) return;
+        if (
+            previousBlob.current &&
+            voice.ShortName === previousBlob.current.voiceShortName &&
+            previousBlob.current.content === content
+        ) {
+            return previousBlob.current.blob;
         }
 
-        const { region, token } = await GetToken().then(getOrThrow);
+        const { region, token } = await getToken();
         const { Locale, ShortName } = voice;
 
-        fetchVoiceBlob = fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+        fetchVoiceBlobPromise.current = fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
             method: "POST",
             body: `
         <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${Locale}">
             <voice name="${ShortName}">${content}</voice>
         </speak>`,
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Ocp-Apim-Subscription-Key': token,
-                'Content-Type': 'application/ssml+xml',
-                'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
-                'User-Agent': 'Web'
-            }
+                "Authorization": `Bearer ${token}`,
+                "Ocp-Apim-Subscription-Key": token,
+                "Content-Type": "application/ssml+xml",
+                "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
+                "User-Agent": "Web",
+            },
         });
-        const res = await fetchVoiceBlob;
-        const blob = await res.blob();
 
-        fetchVoiceBlob = undefined;
-        previous = {
-            voiceShortName: voice.ShortName,
-            content,
-            blob
+        try {
+            const res = await fetchVoiceBlobPromise.current;
+            if (!res.ok) {
+                console.error(`Failed to get voice blob: ${res.statusText}`);
+                return undefined;
+            }
+            const blob = await res.blob();
+
+            previousBlob.current = {
+                voiceShortName: voice.ShortName,
+                content,
+                blob,
+            };
+            return blob;
+        } catch (error) {
+            console.error("Error fetching voice blob:", error);
+            return undefined;
+        } finally {
+            fetchVoiceBlobPromise.current = undefined;
         }
-        return blob;
-    }
+    };
 
-    return <TTSContext.Provider value={{ isLoaded, awaitLoaded, getDefaultVoice, getLanguages, getVoices, getVoiceBlob }}>{children}</TTSContext.Provider>
-}
+    const ttsValue = {
+        isLoaded,
+        awaitLoaded,
+        getDefaultVoiceModel,
+        getLanguages,
+        getVoiceModels,
+        getVoiceBlob,
+    };
+
+    return <TTSContext.Provider value={ttsValue}>{children}</TTSContext.Provider>;
+};

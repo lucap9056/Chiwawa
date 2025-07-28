@@ -3,22 +3,24 @@ import React, { useEffect } from "react";
 import { HashRouter, Link, Route, Routes } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
-import API from "app-pages/global-services/api";
 import { ProfileProvider } from "app-pages/global-services/profile-cxt";
-import { useLoader } from "app-pages/global-components/loader";
+import { useTTS } from "app-pages/global-services/tts";
+import API from "app-pages/global-services/api";
 
-import UserConfigEditor from "app-pages/root/components/home/user-config";
+import { useLoader } from "app-pages/global-components/loader";
+import UserConfigEditor from "./user-config";
+import AppConfigEditor from "./app-config";
 
 import { Profile } from "structs/profile";
+import { isAdminAppConfig } from "structs/app-config";
 
-import styles from "app-pages/root/components/home/style.module.scss";
-import { useTTS } from "app-pages/global-services/tts";
+import styles from "./style.module.scss";
 
 interface Props {
     profile: Profile
 }
 
-const Root: React.FC = () => {
+const Home: React.FC<Props> = ({ profile }) => {
     const { t } = useTranslation();
     const loader = useLoader();
     const tts = useTTS();
@@ -34,36 +36,42 @@ const Root: React.FC = () => {
 
     const logout = async () => {
         const loading = loader.append();
-        API.logout()
-            .then(() => {
-                location.reload();
-            })
-            .finally(() => {
-                loading.remove();
-            });
+        const reuslt = await API.logout();
+
+        if (reuslt.isOk()) {
+            location.reload();
+        }
+
+        loading.remove();
+
     }
 
-    return <div className={styles.options}>
-        <Link to="/user">
-            <button className={styles.option}>User</button>
-        </Link>
-        <button className={styles.option} onClick={logout}>{t("app.logout")}</button>
-    </div>
-}
-
-const Home: React.FC<Props> = ({ profile }) => {
-
     return <div className={styles.menu}>
-        <HashRouter>
-            <Routes>
-                <Route path="user/*" element={
-                    <ProfileProvider profile={profile}>
+        <ProfileProvider profile={profile}>
+            <HashRouter>
+                <Routes>
+                    <Route path="app/*" element={
+                        <AppConfigEditor />
+                    } />
+                    <Route path="user/*" element={
                         <UserConfigEditor />
-                    </ProfileProvider>
-                } />
-                <Route path="*" element={<Root />} />
-            </Routes>
-        </HashRouter>
+                    } />
+                    <Route path="*" element={
+                        <div className={styles.options}>
+                            <Link to="/user">
+                                <button className={styles.option}>User</button>
+                            </Link>
+                            {isAdminAppConfig(profile.appInfo.config) &&
+                                <Link to="/app">
+                                    <button className={styles.option}>App</button>
+                                </Link>
+                            }
+                            <button className={styles.option} onClick={logout}>{t("app.logout")}</button>
+                        </div>
+                    } />
+                </Routes>
+            </HashRouter>
+        </ProfileProvider>
     </div>
 }
 

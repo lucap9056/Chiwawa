@@ -43,8 +43,8 @@ const updateLanguage = (msg: MessageTemplate, language: string = ""): MessageTem
     { ...msg, language: (language === "") ? undefined : language }
 );
 
-const updateVoice = (msg: MessageTemplate, voice: string = ""): MessageTemplate => (
-    { ...msg, voice: (voice === "") ? undefined : voice }
+const updateVoice = (msg: MessageTemplate, voiceModel: string = ""): MessageTemplate => (
+    { ...msg, voiceModel: (voiceModel === "") ? undefined : voiceModel }
 );
 
 const reset = ({ user, guildId }: Context): UserConfig =>

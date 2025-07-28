@@ -1,9 +1,20 @@
+import { buildResult, Err, Ok, Option, Result } from "resultant.js/rustify";
 import { MongoClient } from "mongodb";
-import { AppInfo, UserConfig } from "/structs/user-config";
+import { UserConfig } from "structs/user-config";
+import { AppConfig, createEmptyAppConfig } from "structs/app-config";
+
+export interface AppInfo {
+    version: number
+    config: AppConfig
+    guildIds: string[]
+}
 
 export interface Database {
-    setAppInfo: (appInfo: AppInfo) => Promise<void>
-    get: (id: string) => Promise<UserConfig | null>
+    initAppInfo: () => Promise<Result<void, Error>>
+    setGuildIds: (guildIds: string[]) => Promise<Result<void, Error>>
+    setAppConfig: (config: AppConfig) => Promise<Result<void, Error>>
+    getAppConfig: () => Promise<Result<Option<AppConfig>, Error>>
+    getUserConfig: (id: string) => Promise<Result<Option<UserConfig>, Error>>
     close: () => Promise<void>
 }
 
@@ -36,29 +47,67 @@ const connectDatabaseWithRetry = async (databaseUrl: string): Promise<MongoClien
     );
 };
 
-const newDatabase = async (url: string): Promise<Database> => {
-    const client = await connectDatabaseWithRetry(url);
+const newDatabase = (databaseUrl: string) => buildResult<Database>(async () => {
+    if (databaseUrl === "") {
+        throw new Error("DB_CONNECTION_ERROR: Database URL cannot be empty.");
+    }
+    const client = await connectDatabaseWithRetry(databaseUrl);
 
     const db = client.db();
-    const collection = db.collection<UserConfig>("users");
+    const users = db.collection<UserConfig>("users");
+    const app = db.collection<AppInfo>("app");
+
+    const id = "0";
+    const version = 1;
 
     return {
-        setAppInfo: async (appInfo: AppInfo) => {
-            const { acknowledged } = await collection.updateOne(
-                { id: "0" },
-                { $set: appInfo },
+        initAppInfo: () => buildResult(async () => {
+            const guildIds: string[] = [];
+            const config = createEmptyAppConfig();
+            const { acknowledged } = await app.updateOne(
+                { id },
+                { $setOnInsert: { version, guildIds, config } },
                 { upsert: true }
             );
-            if (!acknowledged) throw new Error("SET_GUILD_IDS_FAILED: Database operation not acknowledged.");
-        },
-        get: (id: string): Promise<UserConfig | null> => {
-            return collection.findOne<UserConfig>({ id }, { projection: { _id: 0 } });
-        },
+            if (!acknowledged) {
+                throw new Error("DB_INIT_APP_INFO_FAILED: Database operation not acknowledged.");
+            }
+        }),
+        setGuildIds: (guildIds: string[]) => buildResult(async () => {
+            const { acknowledged } = await app.updateOne(
+                { id },
+                { $set: { version, guildIds } },
+            );
+            if (!acknowledged) {
+                throw new Error("DB_SET_GUILD_IDS_FAILED: Database operation not acknowledged.");
+            }
+        }),
+        setAppConfig: (config: AppConfig) => buildResult(async () => {
+            
+            const { acknowledged } = await app.updateOne(
+                { id },
+                { $set: { version, config } },
+            );
+            if (!acknowledged) {
+                throw new Error("DB_SET_APP_CONFIG_FAILED: Database operation not acknowledged.");
+            }
+        }),
+
+        getAppConfig: () =>
+            app.findOne<AppInfo>({ id }, { projection: { _id: 0, id: 0, guildIds: 0 } })
+                .then((appInfo) => Ok<Option<AppConfig>, Error>(new Option(appInfo).map(({ config }) => config)))
+                .catch((err) => Err<Option<AppConfig>, Error>(err)),
+
+        getUserConfig: (id: string) =>
+            users.findOne<UserConfig>({ id }, { projection: { _id: 0 } })
+                .then((user) => Ok<Option<UserConfig>, Error>(new Option(user)))
+                .catch((err) => Err<Option<UserConfig>, Error>(err)),
+
         close: (): Promise<void> => {
             return client.close();
         }
     }
-}
+});
 
 export default {
     newDatabase

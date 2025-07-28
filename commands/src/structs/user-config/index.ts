@@ -19,7 +19,7 @@ export interface MessageTemplate {
     content: string;
     suffix?: string;
     language?: string;
-    voice?: string;
+    voiceModel?: string;
 }
 
 export const createEmptyMessage = (): MessageTemplate => ({

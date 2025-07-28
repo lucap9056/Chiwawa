@@ -1,17 +1,9 @@
-export interface AppInfo {
-    id: "0"
-    defaultJoinSuffix: string
-    defaultLeaveSuffix: string
-    defaultVoiceModule: string
-    guildIds: string[]
-}
-
 export interface MessageTemplate {
     prefix: string;
     content: string;
     suffix?: string;
     language?: string;
-    voice?: string;
+    voiceModel?: string;
 }
 
 export interface SpeechNotice {

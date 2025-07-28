@@ -8,6 +8,7 @@ import { useNotifications } from "app-pages/global-components/notifications";
 
 import styles from "app-pages/root/components/not-logged-in/style.module.scss";
 import { Message } from "app-pages/global-structs/message";
+import { match } from "resultant.js/rustify";
 
 const NotLoggedIn = () => {
     const loader = useLoader();
@@ -17,23 +18,22 @@ const NotLoggedIn = () => {
     const Login = async () => {
         const loading = loader.append();
 
-        API.login()
-            .then(() => {
+        const loginResult = await API.login();
+        match(loginResult, {
+            Ok: () => {
                 location.reload();
-            })
-            .catch((err) => {
-
+            },
+            Err: (error) => {
                 notifications.append(
                     new Message({
                         type: Message.Type.ERROR,
-                        content: (err as Error).message
+                        content: error.message
                     })
                 );
+            }
+        });
 
-            })
-            .finally(() => {
-                loading.remove();
-            });
+        loading.remove();
 
     }
 

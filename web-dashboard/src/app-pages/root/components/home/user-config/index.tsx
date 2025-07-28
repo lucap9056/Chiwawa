@@ -5,11 +5,12 @@ import { Link, Route, Routes } from "react-router-dom";
 
 import { useProfile } from "app-pages/global-services/profile-cxt";
 
-import Editor from "app-pages/root/components/home/user-config/editor";
-import styles from "app-pages/root/components/home/user-config/style.module.scss";
+import Editor from "./editor";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLeftLong } from "@fortawesome/free-solid-svg-icons";
+
+import styles from "./style.module.scss";
 
 const UserConfigEditor: React.FC = () => {
     const { t } = useTranslation();

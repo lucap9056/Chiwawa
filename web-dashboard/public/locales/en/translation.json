@@ -12,6 +12,36 @@
         "logout": "Logout",
         "back": "Back"
     },
+    "appconfig": {
+        "admins": {
+            "block": "Admins",
+            "append": {
+                "label": "Append admin",
+                "placeholder": "user id"
+            },
+            "alerts": {
+                "admin-minimum": "A minimum of one administrator is needed."
+            }
+        },
+        "default-suffix": {
+            "block": "Default Suffix",
+            "join": {
+                "label": "Join suffix"
+            },
+            "leave": {
+                "label": "Leave suffix"
+            }
+        },
+        "tts": {
+            "block": "TTS",
+            "region": {
+                "label": "Region"
+            },
+            "api-key": {
+                "label": "API key"
+            }
+        }
+    },
     "userconfig": {
         "global": "Global",
         "mute": "Mute",

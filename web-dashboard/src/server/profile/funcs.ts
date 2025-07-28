@@ -1,6 +1,6 @@
 import oauth2 from "services/discord-oauth2";
 import sessions from "services/sessions";
-import { goify } from "structs/goify";
+import { goify } from "resultant.js/goify";
 import { Session } from "structs/sessions";
 
 const isExpriedToken = (session: Session): boolean => session.userToken.expires_in * 1000 > new Date().getTime();

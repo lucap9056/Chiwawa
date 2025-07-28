@@ -1,9 +1,28 @@
 import { AudioPlayer, AudioPlayerStatus, createAudioPlayer, createAudioResource, joinVoiceChannel, VoiceConnection } from "@discordjs/voice";
 import { GuildChannel } from "discord.js";
+import { match, None, Option, Some } from "resultant.js/rustify";
 import { Readable } from "stream";
 
 export class Connection {
-    private files: Buffer[] = [];
+
+    private static createAudioPlayer(connection: VoiceConnection, playbackCompletedHandler: () => void): AudioPlayer {
+        const audioPlayer = createAudioPlayer();
+
+        connection.subscribe(audioPlayer);
+
+        audioPlayer.on('stateChange', (oldState, newState) => {
+
+            switch (oldState.status + newState.status) {
+                case AudioPlayerStatus.Playing + AudioPlayerStatus.Idle:
+                    playbackCompletedHandler();
+                    break;
+            }
+        });
+
+        return audioPlayer;
+    }
+
+    private queues: Buffer[] = [];
     private audioPlayer: AudioPlayer;
     private connection: VoiceConnection;
     public readonly channel: GuildChannel;
@@ -18,50 +37,43 @@ export class Connection {
         });
 
         this.connection = connection;
-        this.audioPlayer = this.setAudioPlayer(connection);
-    }
-
-    private setAudioPlayer(connection: VoiceConnection): AudioPlayer {
-        const audioPlayer = createAudioPlayer();
-
-        connection.subscribe(audioPlayer);
-
-        audioPlayer.on('stateChange', (oldState, newState) => {
-
-            switch (oldState.status + newState.status) {
-                case AudioPlayerStatus.Playing + AudioPlayerStatus.Idle:
-                    this.playNext();
-                    break;
-            }
-        });
-
-        return audioPlayer;
+        this.audioPlayer = Connection.createAudioPlayer(connection, () => this.playNext());
     }
 
     public destory(): void {
+        this.audioPlayer.stop();
         this.connection.destroy();
     }
 
     public disconnect(): void {
+        this.audioPlayer.stop();
         this.connection.disconnect();
     }
 
-    public push(fileBuffer: Buffer): void {
+    public queue(fileBuffer: Buffer) {
+        const { queues } = this;
 
-        this.files.push(fileBuffer);
-        if (this.audioPlayer.state.status === AudioPlayerStatus.Idle) {
+        queues.push(fileBuffer);
+
+        const { state } = this.audioPlayer;
+
+        if (state.status === AudioPlayerStatus.Idle) {
             this.playNext();
         }
-    }
-
-    private playNext(): void {
-        const file = this.files.shift();
-
-        if (file === undefined) return;
-        const stream = Readable.from(file);
-        const resource = createAudioResource(stream);
-
-        this.audioPlayer.play(resource);
 
     }
+
+    private playNext() {
+        const { audioPlayer, queues } = this;
+
+        const fileBuffer = new Option(queues.shift());
+
+        fileBuffer.map(Readable.from)
+            .map(createAudioResource)
+            .map((audioResource) => {
+                audioPlayer.play(audioResource);
+            });
+
+    }
+
 }

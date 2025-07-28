@@ -8,23 +8,36 @@ services:
       APP_DISCORD_TOKEN: ${APP_DISCORD_TOKEN}
       DEFAULT_JOIN_SUFFUX: ${DEFAULT_JOIN_SUFFUX}
       DEFAULT_LEAVE_SUFFIX: ${DEFAULT_LEAVE_SUFFIX}
-      TTS_REGIN: ${TTS_REGIN}
-      TTS_TOKEN: ${TTS_TOKEN}
+      TTS_REGION: ${TTS_REGION}
+      TTS_API_KEY: ${TTS_API_KEY}
       TTS_DEFAULT_VOICE_MODULE: ${TTS_DEFAULT_VOICE_MODULE}
       DATABASE_URL: ${DATABASE_URL}
+      ADMINS: ${ADMINS}
     depends_on:
       - mongodb
 
-  chiwawa_dashboard:
+  chiwawa-commands:
+    image: lucap9056/chiwawa-commands:latest
+    container_name: chiwawa_commands
+    networks:
+      - chiwawa_network
+    environment:
+      APP_DISCORD_TOKEN: ${APP_DISCORD_TOKEN}
+      APPLICATION_ID: ${CLIENT_ID}
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      - mongodb
+      - chiwawa
+
+  chiwawa-dashboard:
     image: lucap9056/chiwawa-dashboard:latest
     container_name: chiwawa_dashboard
     environment:
-      TTS_REGIN: ${TTS_REGIN}
-      TTS_TOKEN: ${TTS_TOKEN}
       CLIENT_ID: ${CLIENT_ID}
       CLIENT_SECRET: ${CLIENT_SECRET}
       REDIRECT_URI: ${REDIRECT_URI}
       DATABASE_URL: ${DATABASE_URL}
+      ADMINS: ${ADMINS}
     ports:
       - "80:3000"
     networks:
@@ -36,6 +49,8 @@ services:
   mongodb:
     image: mongo:latest
     container_name: chiwawa_mongodb
+    ports:
+      - 27017:27017
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}

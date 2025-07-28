@@ -1,9 +1,6 @@
 "use server";
 import { GetIssueToken } from "services/microsoft-tts";
 import { IssueToken } from "structs/microsoft-tts";
-import { Result } from "structs/rs-result";
+import { buildSerializableOutcome, SerializableOutcome } from "resultant.js/rustify";
 
-export const GetAccessToken = async () => Result<IssueToken>(async (Ok) => {
-    const issueToken = await GetIssueToken();
-    Ok(issueToken);
-});
+export const GetAccessToken = async (): Promise<SerializableOutcome<IssueToken>> => buildSerializableOutcome<IssueToken>(() => GetIssueToken());

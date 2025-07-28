@@ -1,22 +1,26 @@
+import { AdminAppConfig, AppConfig, createEmptyUserAppConfig, rebuildUserAppConfig } from "structs/app-config";
 import { DiscordGuild, DiscordUser } from "structs/discord";
 import { OAuth2Token } from "structs/discord-oauth2";
-import { IssueToken } from "structs/microsoft-tts";
+import { createEmptyIssueToken, IssueToken } from "structs/microsoft-tts";
 import { UserConfig } from "structs/user-config";
 
-const defaultVoiceModule = process.env["TTS_DEFAULT_VOICE_MODULE"] || "";
+const isAdmin = (userId: string, config: AppConfig): config is AdminAppConfig => "admins" in config ? config.admins.includes(userId) : false;
 
 export interface AppInfo {
-    defaultJoinSuffix: string
-    defaultLeaveSuffix: string
-    defaultVoiceModule: string
+    config: AppConfig
     ttsAccessToken: IssueToken
 }
 
-export const createEmptyAppInfo = (): AppInfo => ({
-    defaultJoinSuffix: "",
-    defaultLeaveSuffix: "",
-    defaultVoiceModule,
-    ttsAccessToken: { token: "", expiresAt: 0, region: "" },
+export const createEmptyAppInfo = (): AppInfo =>
+({
+    config: createEmptyUserAppConfig(),
+    ttsAccessToken: createEmptyIssueToken(),
+});
+
+export const rebuildAppInfo = (userId: string, { config, ttsAccessToken }: AppInfo): AppInfo =>
+({
+    config: isAdmin(userId, config) ? config : rebuildUserAppConfig(config),
+    ttsAccessToken,
 });
 
 export interface UserInfo {
@@ -25,6 +29,9 @@ export interface UserInfo {
     config: UserConfig
     token: OAuth2Token
 }
+
+export const createUserInfo = (user: DiscordUser, guilds: DiscordGuild[], config: UserConfig, token: OAuth2Token): UserInfo =>
+    ({ user, guilds, config, token });
 
 export interface Profile {
     appInfo: AppInfo

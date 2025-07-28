@@ -12,6 +12,7 @@ import Home from "app-pages/root/components/home";
 import { GuildsMemberProvider } from "app-pages/global-services/guilds-member";
 import { Profile } from "structs/profile";
 import { TTSProvider } from "app-pages/global-services/tts";
+import { match } from "resultant.js/rustify";
 
 const App: React.FC = () => {
     const { t } = useTranslation();
@@ -31,25 +32,27 @@ const App: React.FC = () => {
             })
         );
 
-        API.retrieveProfile()
-            .then(setProfile)
-            .catch((err) => {
+        API.retrieveProfile().then((retrievedProfile) => {
 
-                notifications.append(
-                    new Message({
-                        type: Message.Type.ERROR,
-                        content: (err as Error).message
-                    })
-                );
-
-            })
-            .finally(() => {
-
-                loading.remove();
-                loadingNotification.remove();
-                setLoaded(true);
-
+            match(retrievedProfile, {
+                Ok: (profile) => {
+                    setProfile(profile);
+                },
+                Err: (error) => {
+                    notifications.append(
+                        new Message({
+                            type: Message.Type.ERROR,
+                            content: error.message
+                        })
+                    );
+                }
             });
+
+            loading.remove();
+            loadingNotification.remove();
+            setLoaded(true);
+
+        });
 
     }, []);
 

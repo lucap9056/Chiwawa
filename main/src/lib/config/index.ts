@@ -1,25 +1,24 @@
-export interface AppConfig {
+import { AppConfig } from "structs/app-config";
+
+export interface AppRuntimeConfig extends AppConfig {
     discordToken: string;
-    defaultJoinSuffix: string;
-    defaultLeaveSuffix: string;
-    ttsRegin: string;
-    ttsToken: string;
-    ttsDefaultVoiceModule: string;
     databaseUrl: string;
 }
 
-const newConfig = (): AppConfig => {
+const loadConfig = (): AppRuntimeConfig => {
     return {
-        discordToken: process.env["APP_DISCORD_TOKEN"] || "",
         defaultJoinSuffix: process.env["DEFAULT_JOIN_SUFFUX"] || "",
         defaultLeaveSuffix: process.env["DEFAULT_LEAVE_SUFFIX"] || "",
-        ttsRegin: process.env["TTS_REGIN"] || "",
-        ttsToken: process.env["TTS_TOKEN"] || "",
-        ttsDefaultVoiceModule: process.env["TTS_DEFAULT_VOICE_MODULE"] || "",
+        defaultVoiceModel: process.env["DEFAULT_VOICE_MODEL"] || "",
+        ttsRegion: process.env["TTS_REGION"] || "",
+        ttsApiKey: process.env["TTS_API_KEY"] || "",
+        admins: (process.env["ADMINS"] || "").split(/,/),
+        //
+        discordToken: process.env["APP_DISCORD_TOKEN"] || "",
         databaseUrl: process.env["DATABASE_URL"] || "",
     };
 }
 
 export default {
-    newConfig
+    loadConfig
 };

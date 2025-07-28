@@ -1,8 +1,9 @@
 "use client";
 import { AppInfo, Profile, UserInfo } from "structs/profile";
-import React, { createContext, useContext } from "react";
-import { UserConfig } from "structs/user-config";
+import React, { createContext, useCallback, useContext, useState } from "react";
+import { SpeechNotice } from "structs/user-config";
 import { DiscordGuild } from "structs/discord";
+import { AdminAppConfig } from "structs/app-config";
 
 interface Props {
     profile: Profile,
@@ -13,7 +14,8 @@ interface ProfileFuncs {
     getAppInfo: () => AppInfo
     getUserInfo: () => UserInfo
     getGuilds: () => DiscordGuild[]
-    setUserConfig: (config: UserConfig) => void
+    updateAppConfig: (config: AdminAppConfig) => void
+    updateSpeechNotice: (speechNotice: SpeechNotice, guildId?: string) => void
 }
 
 const ProfileContext = createContext<ProfileFuncs | null>(null);
@@ -27,14 +29,47 @@ export const useProfile = (): ProfileFuncs => {
     return context;
 }
 
-export const ProfileProvider: React.FC<Props> = ({ profile, children }) => {
+export const ProfileProvider: React.FC<Props> = ({ children, ...props }) => {
+    const [profile, setProfile] = useState<Profile>(props.profile);
 
-    const getAppInfo = () => profile.appInfo;
-    const getUserInfo = () => profile.userInfo;
+    const getAppInfo = (): AppInfo => ({ ...profile.appInfo });
+    const getUserInfo = (): UserInfo => ({ ...profile.userInfo });
 
     const getGuilds = (): DiscordGuild[] => profile.userInfo.guilds.filter(g => profile.userInfo.config.guilds[g.id]);
 
-    const setUserConfig = (config: UserConfig) => { profile.userInfo = { ...profile.userInfo, config }; };
+    const updateAppConfig = (config: AdminAppConfig) => {
+        setProfile(({ appInfo, ...p }) => ({
+            ...p,
+            appInfo: {
+                ...appInfo,
+                config
+            }
+        }
+        ));
+    }
 
-    return <ProfileContext.Provider value={{ getAppInfo, getUserInfo, getGuilds, setUserConfig }}>{children}</ProfileContext.Provider>
+    const updateSpeechNotice = useCallback((speechNotice: SpeechNotice, guildId?: string) => {
+        setProfile((p) => {
+            const config = { ...p.userInfo.config };
+
+            if (guildId) {
+                config.guilds = {
+                    ...config.guilds,
+                    [guildId]: speechNotice,
+                };
+            } else {
+                config.global = speechNotice;
+            }
+
+            return {
+                ...p,
+                userInfo: {
+                    ...p.userInfo,
+                    config,
+                },
+            };
+        });
+    }, []);
+
+    return <ProfileContext.Provider value={{ getAppInfo, getUserInfo, getGuilds, updateAppConfig, updateSpeechNotice }}>{children}</ProfileContext.Provider>
 }

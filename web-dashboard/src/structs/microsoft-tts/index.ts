@@ -4,3 +4,10 @@ export interface IssueToken {
     token: string;
     expiresAt: number;
 }
+
+export const createEmptyIssueToken = (): IssueToken =>
+({
+    region: "",
+    token: "",
+    expiresAt: 0,
+});

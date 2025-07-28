@@ -3,31 +3,30 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
-
+import API from "app-pages/global-services/api";
 import { GuildsMember, useGuildsMember } from "app-pages/global-services/guilds-member";
 import { useProfile } from "app-pages/global-services/profile-cxt";
 
 import { UserInfo } from "structs/profile";
-import { DiscordGuild } from "structs/discord";
-import { createEmptyMessage, MessageTemplate, SpeechNotice, UserConfig } from "structs/user-config";
+import { DiscordGuild, DiscordGuildMember } from "structs/discord";
+import { createEmptyMessage, createEmptySpeechNotice, MessageTemplate, SpeechNotice } from "structs/user-config";
 
 import Toggle from "app-pages/global-components/form/toggle";
-import VoiceSelector from "app-pages/root/components/home/user-config/editor/voice-selector";
-import { useTTS, Voice } from "app-pages/global-services/tts";
+import VoiceSelector from "app-pages/root/components/voice-model-selector";
+import { useTTS, VoiceModel } from "app-pages/global-services/tts";
 
 import styles from "app-pages/root/components/home/user-config/editor/style.module.scss";
-import { UpdateUserConfig } from "server/profile";
 import { useLoader } from "app-pages/global-components/loader";
 import { useNotifications } from "app-pages/global-components/notifications";
 import { Message } from "app-pages/global-structs/message";
-import { getOrThrow } from "structs/rs-result";
+import { match, None, Option, Some } from "resultant.js/rustify";
 
 
-const getGuild = ({ guilds }: UserInfo, guildId: string = ""): DiscordGuild | undefined => guilds.find((g: DiscordGuild) => g.id === guildId);
+const getGuild = ({ guilds }: UserInfo, guildId: string = ""): Option<DiscordGuild> => new Option(guilds.find((g: DiscordGuild) => g.id === guildId));
 
 const getGlobalDisplayName = ({ user }: UserInfo) => user.global_name || user.username;
 
-const getSpeechNotice = ({ config }: UserInfo, guild?: DiscordGuild) => guild ? config.guilds[guild.id] : config.global;
+const getSpeechNotice = ({ config }: UserInfo, guild: Option<DiscordGuild>) => guild.map(({ id }) => config.guilds[id]).unwrapOr(createEmptySpeechNotice(true));
 
 const getJoinMessage = ({ joinMessage }: SpeechNotice): MessageTemplate => ({ ...joinMessage, suffix: (joinMessage.suffix || "").trim() });
 
@@ -43,25 +42,36 @@ const isSimpleSpeechNotice = (s: SpeechNotice) => (
 
 const isRemovedSuffix = (s: SpeechNotice) => s.joinMessage.suffix === undefined && (isSimpleSpeechNotice(s) || s.leaveMessage.suffix === undefined);
 
-const getGuildName = (guild?: DiscordGuild): string | undefined => guild ? guild.name : undefined;
+const getGuildMember = async (guildsMember: GuildsMember, guild: Option<DiscordGuild>): Promise<Option<DiscordGuildMember>> => {
+    return match(guild.map(g => g.id), {
+        async Some(guildId) {
+            const guildMember = await (guildsMember.getMember(guildId) || guildsMember.loadMember(guildId));
 
-const getDisplayName = async (guildsMember: GuildsMember, userInfo: UserInfo, guild?: DiscordGuild): Promise<string> => {
-    try {
-        if (guild) {
-            const getGuildMember = guildsMember.getMember(guild.id);
+            return match(guildMember, {
+                Ok(member) {
+                    return Some(member);
+                },
+                Err() {
+                    return None<DiscordGuildMember>();
+                }
+            });
 
-            const guildMember = (getGuildMember) ?
-                await getGuildMember :
-                await guildsMember.loadMember(guild.id);
-
-            const { nick, user } = getOrThrow(guildMember);
-
-            return nick || user.global_name || user.username;
-        }
-    }
-    catch { }
-    return getGlobalDisplayName(userInfo);
+        },
+        async None() {
+            return None<DiscordGuildMember>();
+        },
+    });
 }
+
+const getDisplayName = async (guildsMember: GuildsMember, userInfo: UserInfo, guild: Option<DiscordGuild>): Promise<string> => {
+    const member = await getGuildMember(guildsMember, guild);
+    return match(member, {
+        Some: ({ nick, user }) => (nick || user.global_name || user.username),
+        None: () => getGlobalDisplayName(userInfo),
+    });
+}
+
+
 
 const Editor: React.FC = () => {
     const { t } = useTranslation();
@@ -69,12 +79,12 @@ const Editor: React.FC = () => {
     const loader = useLoader();
     const notifications = useNotifications();
     const guildsMember = useGuildsMember();
-    const { getAppInfo, getUserInfo, setUserConfig } = useProfile();
+    const { getAppInfo, getUserInfo, updateSpeechNotice } = useProfile();
 
     const userInfo = getUserInfo();
 
     const [isLoaded, setIsLoaded] = useState(false);
-    const [speechNotice, setSpeechNotice] = useState<SpeechNotice>(getSpeechNotice(userInfo));
+    const [speechNotice, setSpeechNotice] = useState<SpeechNotice>(userInfo.config.global);
     const [displayName, setDisplayName] = useState<string>(getGlobalDisplayName(userInfo));
 
     const [advancedSpeechNotice, setIsAadvancedSpeechNotice] = useState(!isSimpleSpeechNotice(speechNotice));
@@ -85,7 +95,7 @@ const Editor: React.FC = () => {
     const { guildId } = useParams();
     const guild = getGuild(userInfo, guildId);
 
-    const { defaultJoinSuffix, defaultLeaveSuffix } = getAppInfo();
+    const { defaultJoinSuffix, defaultLeaveSuffix } = getAppInfo().config;
 
     useEffect(() => {
         const loading = loader.append();
@@ -94,14 +104,13 @@ const Editor: React.FC = () => {
         tts.awaitLoaded().finally(async () => {
             loading.remove();
 
+            const name = await getDisplayName(guildsMember, userInfo, guild);
             const s = getSpeechNotice(userInfo, guild);
             setSpeechNotice(s);
             setIsAadvancedSpeechNotice(!isSimpleSpeechNotice(s));
             setRemoveSuffix(isRemovedSuffix(s));
             setJoinMessage(getJoinMessage(s));
             setLeaveMessage(getLeaveMessage(s));
-
-            const name = await getDisplayName(guildsMember, userInfo, guild);
 
             setDisplayName(name);
             setIsLoaded(true);
@@ -123,22 +132,8 @@ const Editor: React.FC = () => {
         } : {
             ...speechNotice,
             joinMessage: { ...joinMessage, prefix: "", suffix: removeSuffix ? undefined : "" },
-            leaveMessage: createEmptyMessage()
+            leaveMessage: { ...createEmptyMessage(), suffix: removeSuffix ? undefined : "" }
         };
-
-        const updatedConfig: UserConfig = (guild) ?
-            {
-                ...userInfo.config,
-                guilds: {
-                    ...userInfo.config.guilds,
-                    [guild.id]: updatedSpeechNotice
-                }
-            } :
-            {
-                ...userInfo.config,
-                global: updatedSpeechNotice
-            };
-
 
         const loading = loader.append();
 
@@ -149,32 +144,33 @@ const Editor: React.FC = () => {
             })
         );
 
-        UpdateUserConfig(updatedConfig).then(getOrThrow)
-            .then(() => {
+        API.updateUserSpeechNotice(updatedSpeechNotice, guildId).then((result) => {
 
-                notifications.append(
-                    new Message({
-                        type: Message.Type.NORMAL,
-                        content: t("app.saved")
-                    })
-                );
-
+            match(result, {
+                Ok() {
+                    updateSpeechNotice(updatedSpeechNotice, guildId);
+                    notifications.append(
+                        new Message({
+                            type: Message.Type.NORMAL,
+                            content: t("app.saved")
+                        })
+                    );
+                },
+                Err(err) {
+                    console.error(err);
+                    notifications.append(
+                        new Message({
+                            type: Message.Type.ERROR,
+                            content: t("app.save-failed")
+                        })
+                    );
+                }
             })
-            .catch(() => {
 
-                notifications.append(
-                    new Message({
-                        type: Message.Type.ERROR,
-                        content: t("app.save-failed")
-                    })
-                );
+            loading.remove();
+            saving.remove();
 
-            })
-            .finally(() => {
-                setUserConfig(updatedConfig);
-                loading.remove();
-                saving.remove();
-            })
+        });
 
     }
 
@@ -217,16 +213,16 @@ const Editor: React.FC = () => {
         }
     }
 
-    const updateJoinVoiceModule = (v: Voice) => {
-        const voice = v.DisplayName;
+    const updateJoinVoiceModel = (v: VoiceModel) => {
+        const voiceModel = v.DisplayName;
         const language = v.Locale;
-        setJoinMessage({ ...joinMessage, voice, language });
+        setJoinMessage({ ...joinMessage, voiceModel, language });
     }
 
-    const updateLeaveVoiceModule = (v: Voice) => {
-        const voice = v.DisplayName;
+    const updateLeaveVoiceModel = (v: VoiceModel) => {
+        const voiceModel = v.DisplayName;
         const language = v.Locale;
-        setLeaveMessage({ ...leaveMessage, voice, language });
+        setLeaveMessage({ ...leaveMessage, voiceModel, language });
     }
 
     const getJoinMessageText = () => {
@@ -248,15 +244,15 @@ const Editor: React.FC = () => {
 
     return <div className={styles.speech_notice}>
         <div className={styles.guild_info}>
-            <div className={styles.guild_name}>{getGuildName(guild) || t("userconfig.global")}</div>
+            <div className={styles.guild_name}>{guild.map(g => g.name).unwrapOr(t("userconfig.global"))}</div>
         </div>
-        {guild && <>
-            <Toggle key={guild.id} label={t("userconfig.inherit-global")} value={speechNotice.inheritGlobal} onChange={setInheritGlobal} />
+        {guild.isSome() && <>
+            <Toggle key={guild.unwrap().id} label={t("userconfig.inherit-global")} value={speechNotice.inheritGlobal} onChange={setInheritGlobal} />
             <hr />
         </>
         }
 
-        {(!speechNotice.inheritGlobal || !guild) && <>
+        {(!speechNotice.inheritGlobal || guild.isNone()) && <>
             <Toggle label={t("userconfig.mute")} value={speechNotice.muted} onChange={setMute} />
             <hr />
             {!speechNotice.muted && <>
@@ -268,14 +264,14 @@ const Editor: React.FC = () => {
                     <input type="text" className={styles.content} placeholder={displayName} defaultValue={joinMessage.content} onChange={updateContent} />
                     {advancedSpeechNotice && !removeSuffix && <input type="text" className={styles.suffix} placeholder={defaultJoinSuffix} defaultValue={joinMessage.suffix} onChange={updateSuffix} />}
                 </div>
-                <VoiceSelector message={getJoinMessageText()} onChange={updateJoinVoiceModule} />
+                <VoiceSelector message={getJoinMessageText()} onChange={updateJoinVoiceModel} />
                 {advancedSpeechNotice && <>
                     <div className={styles.message}>
                         <input type="text" className={styles.prefix} placeholder={joinMessage.prefix} defaultValue={leaveMessage.prefix} data-msg="leave" onChange={updatePrefix} />
                         <input type="text" className={styles.content} placeholder={joinMessage.content || displayName} defaultValue={leaveMessage.content} data-msg="leave" onChange={updateContent} />
                         {!removeSuffix && <input type="text" className={styles.suffix} placeholder={joinMessage.suffix || defaultLeaveSuffix} defaultValue={leaveMessage.suffix} data-msg="leave" onChange={updateSuffix} />}
                     </div>
-                    <VoiceSelector message={getLeaveMessageText()} onChange={updateLeaveVoiceModule} />
+                    <VoiceSelector message={getLeaveMessageText()} onChange={updateLeaveVoiceModel} />
                 </>}
 
                 <Toggle label={t("userconfig.remove-suffix")} value={removeSuffix} onChange={setRemoveSuffix} />

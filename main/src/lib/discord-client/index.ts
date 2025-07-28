@@ -1,10 +1,12 @@
 import { Client, GatewayIntentBits, Partials, VoiceState } from "discord.js";
-import { AppConfig } from "lib/config";
+import { AppRuntimeConfig } from "lib/config";
 import { Database } from "lib/database";
 import voiceStateUpdate from "lib/discord-client/voice-state-update";
 import appContainer, { Container } from "lib/discord-client/app-container";
 import appInfoUpdate from "lib/discord-client/app-info-update"
 import { MicrosoftTTS } from "lib/microsoft-tts";
+import { Option } from "resultant.js/rustify";
+import { Connection } from "./voice-connection";
 
 
 const createClient = (token: string): Promise<Client<true>> => {
@@ -42,9 +44,9 @@ const createClient = (token: string): Promise<Client<true>> => {
     });
 }
 
-const listenJoinedGuildsUpdate = async (client: Client, config: AppConfig, database: Database) => {
+const listenJoinedGuildsUpdate = async (client: Client, database: Database): Promise<void> => {
     await client.guilds.fetch();
-    const update = () => appInfoUpdate.update(client, config, database);
+    const update = () => appInfoUpdate.update(client, database);
     client.on("guildCreate", update);
     client.on("guildDelete", update);
     update();
@@ -61,21 +63,26 @@ export interface DiscordClient {
     destroy: () => Promise<void>
 }
 
-const newClient = async (config: AppConfig, tts: MicrosoftTTS, database?: Database) => {
+const newClient = async (config: AppRuntimeConfig, tts: Option<MicrosoftTTS>, database: Option<Database>) => {
 
     const client = await createClient(config.discordToken);
 
-    const container = appContainer.createContainer(config, client, tts, database);
+    const connections = new Map<string, Connection>();
 
     client.on("error", (err) => console.log(err));
 
-    if (database) listenJoinedGuildsUpdate(client, config, database);
+    database.map((db) => {
+        listenJoinedGuildsUpdate(client, db);
+    });
 
-    listenVoiceStateUpdate(container);
+    tts.map((t) => {
+        const container = appContainer.createContainer(config, client, t, database, connections);
+        listenVoiceStateUpdate(container);
+    });
 
     return {
         destroy: async (): Promise<void> => {
-            for (const connection of container.connections.values()) {
+            for (const connection of connections.values()) {
                 connection.destory();
             }
             await client.destroy();

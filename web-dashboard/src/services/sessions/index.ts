@@ -1,6 +1,6 @@
 import { useMongo } from "services/mongo";
 import { cookies as Cookies } from 'next/headers';
-import { goify } from "structs/goify";
+import { goify } from "resultant.js/goify";
 import { OAuth2Token } from "structs/discord-oauth2";
 import { DiscordUser } from "structs/discord";
 import { Session } from "structs/sessions";

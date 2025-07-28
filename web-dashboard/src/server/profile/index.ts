@@ -4,15 +4,15 @@ import { getSession } from "server/profile/funcs";
 import oauth2 from "services/discord-oauth2";
 import { useMongo } from "services/mongo";
 
-import { createEmptySpeechNotice, UserConfig } from "structs/user-config";
-import { AppInfo, Profile } from "structs/profile";
+import { createEmptySpeechNotice, SpeechNotice, UserConfig } from "structs/user-config";
+import { AppInfo, rebuildAppInfo, createUserInfo, Profile } from "structs/profile";
 import { DiscordGuild, DiscordGuildMember, DiscordUser } from "structs/discord";
-import { goify } from "structs/goify";
+import { goify } from "resultant.js/goify";
+import { SerializableOutcome, buildSerializableOutcome } from "resultant.js/rustify";
 import { GetIssueToken } from "services/microsoft-tts";
-import { Result, RsResult } from "structs/rs-result";
+import { AdminAppConfig, getDefaultAdmins } from "structs/app-config";
 
-
-export const RetrieveProfile = async (): Promise<RsResult<Profile | undefined>> => Result(async (Ok, Err) => {
+export const RetrieveProfile = async (): Promise<SerializableOutcome<Profile>> => buildSerializableOutcome<Profile>(async () => {
 
     const { userId, userToken } = await getSession();
 
@@ -29,23 +29,30 @@ export const RetrieveProfile = async (): Promise<RsResult<Profile | undefined>> 
 
         const getApp = db.getAppInfo();
         const getUserConfig = db.getUserConfig(userId);
-        const getIssueToken = GetIssueToken();
 
-        const [app, user, guilds, userConfig, ttsAccessToken] = await Promise.all(
-            [getApp, getUser, getGuilds, getUserConfig, getIssueToken]
+        const [app, user, guilds, userConfig] = await Promise.all(
+            [getApp, getUser, getGuilds, getUserConfig]
         );
 
-        const appInfo: AppInfo = { ...app, ttsAccessToken }
+        const { ttsRegion, ttsApiKey } = app.config;
+        const ttsAccessToken = await GetIssueToken(ttsRegion, ttsApiKey);
 
-        for (const guildId of app.guildIds) {
+        const appInfo: AppInfo = { config: app.config, ttsAccessToken }
 
-            if (guilds.find((g) => g.id === guildId)) {
-                if (!userConfig.guilds[guildId]) {
-                    userConfig.guilds[guildId] = createEmptySpeechNotice();
+        for (const appJoinedGuildId of app.guildIds) {
+
+            if (guilds.find((g) => g.id === appJoinedGuildId)) {
+                if (!userConfig.guilds[appJoinedGuildId]) {
+                    const updatedGuilds = {
+                        ...userConfig.guilds,
+                        [appJoinedGuildId]: createEmptySpeechNotice(true)
+                    }
+                    userConfig.guilds = updatedGuilds;
                 }
             } else {
-                if (!!userConfig.guilds[guildId]) {
-                    delete userConfig.guilds[guildId];
+                if (userConfig.guilds[appJoinedGuildId]) {
+                    const { [appJoinedGuildId]: _, ...updatedGuilds } = userConfig.guilds;
+                    userConfig.guilds = updatedGuilds;
                 }
             }
 
@@ -55,34 +62,40 @@ export const RetrieveProfile = async (): Promise<RsResult<Profile | undefined>> 
     });
 
     if (err) {
-        return Err(err.message);
+        throw err;
     }
 
     const { appInfo, user, guilds, userConfig } = result;
 
-    const { defaultJoinSuffix, defaultLeaveSuffix, defaultVoiceModule, ttsAccessToken } = appInfo;
-
-    const config = userConfig;
-    const token = userToken;
-
-    Ok({
-        appInfo: { defaultJoinSuffix, defaultLeaveSuffix, defaultVoiceModule, ttsAccessToken },
-        userInfo: { user, guilds, config, token }
-    });
-
+    return {
+        appInfo: rebuildAppInfo(user.id, appInfo),
+        userInfo: createUserInfo(user, guilds, userConfig, userToken)
+    };
 });
 
-export const UpdateUserConfig = async (userConfig: UserConfig): Promise<RsResult<void>> => Result(async (Ok) => {
+export const UpdateUserSpeechNotice = async (speechNotice: SpeechNotice, guildId: string = ""): Promise<SerializableOutcome<void>> => buildSerializableOutcome<void>(async () => {
 
     const { userId } = await getSession();
 
-    const [_, err] = await useMongo((db) => db.updateUserConfig({ ...userConfig, id: userId }));
+    const [_, err] = await useMongo((db) => db.updateUserSpeechNotice(userId, guildId, speechNotice));
     if (err) throw err;
-
-    Ok();
 });
 
-export const GetGuildMember = async (guildId: string): Promise<RsResult<DiscordGuildMember>> => Result(async (Ok) => {
+export const UpdateAppConfig = async (appConfig: AdminAppConfig): Promise<SerializableOutcome<void>> => buildSerializableOutcome<void>(async () => {
+
+    const { userId } = await getSession();
+
+    for (const admin of getDefaultAdmins()) {
+        if (!appConfig.admins.includes(admin)) {
+            appConfig.admins.unshift(admin);
+        }
+    }
+
+    const [_, err] = await useMongo((db) => db.updateAppConfig(userId, appConfig));
+    if (err) throw err;
+});
+
+export const GetGuildMember = async (guildId: string): Promise<SerializableOutcome<DiscordGuildMember>> => buildSerializableOutcome<DiscordGuildMember>(async () => {
 
     const { userToken } = await getSession();
 
@@ -91,6 +104,5 @@ export const GetGuildMember = async (guildId: string): Promise<RsResult<DiscordG
         throw new Error("get guild member failed");
     }
 
-    Ok(guildMember);
-
+    return guildMember;
 });

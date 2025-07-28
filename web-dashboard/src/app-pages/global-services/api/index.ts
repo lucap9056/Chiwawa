@@ -1,8 +1,9 @@
 "use client";
-import { RetrieveProfile } from "server/profile";
+import { RetrieveProfile, UpdateAppConfig, UpdateUserSpeechNotice } from "server/profile";
 import { GetDiscordLoginUrl, Login, Logout } from "server/authorization";
-import { Profile } from "structs/profile";
-import { getOrThrow } from "structs/rs-result";
+import { buildResult, Result } from "resultant.js/rustify";
+import { SpeechNotice } from "structs/user-config";
+import { AdminAppConfig } from "structs/app-config";
 
 const ExternalPromise = <T>(): Promise<{
     resolve: (arg0: T) => void
@@ -40,7 +41,13 @@ export type DiscordLoginResult = DiscordLoginSuccess | DiscordLoginFalied;
 
 const AuthWindow = async (): Promise<void> => {
     const externalPromise = ExternalPromise<void>();
-    const url = await GetDiscordLoginUrl().then(getOrThrow);
+
+    const getDiscordLoginUrl = await Result.From(GetDiscordLoginUrl());
+    if (getDiscordLoginUrl.isErr()) {
+        throw getDiscordLoginUrl.unwrapErr();
+    }
+
+    const url = getDiscordLoginUrl.unwrap();
 
     const authWindow = window.open(url, "authWindow", "width=460,height=620");
 
@@ -78,14 +85,21 @@ const AuthWindow = async (): Promise<void> => {
     return promise;
 }
 
-const login = (): Promise<void> => AuthWindow();
+const login = (): Promise<Result<void, Error>> => buildResult(AuthWindow);
 
-const logout = async (): Promise<void> => await Logout().then(getOrThrow);
+const logout = () => Result.From(Logout());
 
-const retrieveProfile = async (): Promise<Profile | undefined> => await RetrieveProfile().then(getOrThrow);
+const retrieveProfile = () => Result.From(RetrieveProfile());
+
+const updateUserSpeechNotice = (updatedSpeechNotice: SpeechNotice, guildId: string = "") =>
+    Result.From(UpdateUserSpeechNotice(updatedSpeechNotice, guildId));
+
+const updateAppConfig = (config: AdminAppConfig) => Result.From(UpdateAppConfig(config));
 
 export default {
     login,
     logout,
-    retrieveProfile
+    retrieveProfile,
+    updateUserSpeechNotice,
+    updateAppConfig,
 }
