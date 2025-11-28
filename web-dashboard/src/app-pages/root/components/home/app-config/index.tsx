@@ -10,12 +10,14 @@ import Block from "./block";
 
 import styles from "./style.module.scss";
 import { VoiceModel } from "app-pages/global-services/tts";
+import { useTTS } from "app-pages/global-services/tts";
 import { useNavigate } from "react-router-dom";
 import { match } from "resultant.js/rustify";
 import { Message } from "app-pages/global-structs/message";
 import { useLoader } from "app-pages/global-components/loader";
 
 const AppConfigEditor: React.FC = () => {
+    const tts = useTTS();
     const { t } = useTranslation();
     const navigate = useNavigate();
     const loader = useLoader();
@@ -23,6 +25,8 @@ const AppConfigEditor: React.FC = () => {
     const { getAppInfo, updateAppConfig } = useProfile();
     const appInfo = getAppInfo();
     const [config, setConfig] = useState<AdminAppConfig>(createEmptyAdminAppConfig());
+    const [voiceLanguage, setVoiceLanguage] = useState<string | undefined>();
+    const [voiceModel, setVoiceModel] = useState<string | undefined>();
     const [voiceContent, setVoiceContent] = useState("");
     const [loaded, setLoaded] = useState(false);
 
@@ -35,9 +39,14 @@ const AppConfigEditor: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        const currentVoiceModel = tts.findVoiceModel(config.defaultVoiceModel);
+
         const { defaultJoinSuffix, defaultLeaveSuffix } = config;
         const member = "";
         const content = member + defaultJoinSuffix + "." + member + defaultLeaveSuffix;
+
+        setVoiceLanguage(currentVoiceModel?.language);
+        setVoiceModel(currentVoiceModel?.voiceModel);
         setVoiceContent(content);
     }, [config]);
 
@@ -162,7 +171,7 @@ const AppConfigEditor: React.FC = () => {
                 <div className={styles.textbox} data-label={t("appconfig.default-suffix.leave.label")}>
                     <input type="text" defaultValue={config.defaultLeaveSuffix} onChange={updateDefaultLeaveSuffix} />
                 </div>
-                <VoiceModelSelector message={voiceContent} onChange={updateVoiceModel} />
+                <VoiceModelSelector message={voiceContent} currentLanguage={voiceLanguage} currentVoiceModel={voiceModel} onChange={updateVoiceModel} />
             </div>
         </Block>
         <Block title={t("appconfig.tts.block")}>

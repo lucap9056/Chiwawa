@@ -26,7 +26,11 @@ const getGuild = ({ guilds }: UserInfo, guildId: string = ""): Option<DiscordGui
 
 const getGlobalDisplayName = ({ user }: UserInfo) => user.global_name || user.username;
 
-const getSpeechNotice = ({ config }: UserInfo, guild: Option<DiscordGuild>) => guild.map(({ id }) => config.guilds[id]).unwrapOr(createEmptySpeechNotice(true));
+const getSpeechNotice = ({ config }: UserInfo, guild: Option<DiscordGuild>) =>
+    match(guild, {
+        None: () => config.global,
+        Some: (g) => config.guilds[g.id] || createEmptySpeechNotice(true)
+    });
 
 const getJoinMessage = ({ joinMessage }: SpeechNotice): MessageTemplate => ({ ...joinMessage, suffix: (joinMessage.suffix || "").trim() });
 
@@ -106,6 +110,7 @@ const Editor: React.FC = () => {
 
             const name = await getDisplayName(guildsMember, userInfo, guild);
             const s = getSpeechNotice(userInfo, guild);
+
             setSpeechNotice(s);
             setIsAadvancedSpeechNotice(!isSimpleSpeechNotice(s));
             setRemoveSuffix(isRemovedSuffix(s));
@@ -264,14 +269,14 @@ const Editor: React.FC = () => {
                     <input type="text" className={styles.content} placeholder={displayName} defaultValue={joinMessage.content} onChange={updateContent} />
                     {advancedSpeechNotice && !removeSuffix && <input type="text" className={styles.suffix} placeholder={defaultJoinSuffix} defaultValue={joinMessage.suffix} onChange={updateSuffix} />}
                 </div>
-                <VoiceSelector message={getJoinMessageText()} onChange={updateJoinVoiceModel} />
+                <VoiceSelector message={getJoinMessageText()} currentLanguage={joinMessage.language} currentVoiceModel={joinMessage.voiceModel} onChange={updateJoinVoiceModel} />
                 {advancedSpeechNotice && <>
                     <div className={styles.message}>
                         <input type="text" className={styles.prefix} placeholder={joinMessage.prefix} defaultValue={leaveMessage.prefix} data-msg="leave" onChange={updatePrefix} />
                         <input type="text" className={styles.content} placeholder={joinMessage.content || displayName} defaultValue={leaveMessage.content} data-msg="leave" onChange={updateContent} />
                         {!removeSuffix && <input type="text" className={styles.suffix} placeholder={joinMessage.suffix || defaultLeaveSuffix} defaultValue={leaveMessage.suffix} data-msg="leave" onChange={updateSuffix} />}
                     </div>
-                    <VoiceSelector message={getLeaveMessageText()} onChange={updateLeaveVoiceModel} />
+                    <VoiceSelector message={getLeaveMessageText()} currentLanguage={leaveMessage.language} currentVoiceModel={leaveMessage.voiceModel} onChange={updateLeaveVoiceModel} />
                 </>}
 
                 <Toggle label={t("userconfig.remove-suffix")} value={removeSuffix} onChange={setRemoveSuffix} />

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faVolumeHigh } from "@fortawesome/free-solid-svg-icons";
@@ -8,17 +8,40 @@ import styles from "./style.module.scss";
 
 interface Props {
     message: string
+    currentLanguage?: string
+    currentVoiceModel?: string
     onChange: (voice: VoiceModel) => void
 }
 
-const VoiceModelSelector: React.FC<Props> = ({ message, onChange }) => {
+const getCurrentVoiceModel = (tts: ReturnType<typeof useTTS>, defaultVoiceModel: VoiceModel, language?: string, voiceModel?: string): VoiceModel => {
+
+    if (language && voiceModel) {
+        const models = tts.getVoiceModels(language);
+        const found = models.find(v => v.DisplayName === voiceModel);
+
+        if (found) return found;
+    }
+
+    return defaultVoiceModel;
+}
+
+const VoiceModelSelector: React.FC<Props> = ({ message, currentLanguage, currentVoiceModel, onChange }) => {
     const tts = useTTS();
     const defaultVoiceModel = tts.getDefaultVoiceModel();
 
     const [languages, setLanguages] = useState<string[]>([]);
-    const [voiceModels, setVoiceModels] = useState<VoiceModel[]>([]);
     const [language, setLanguage] = useState<string>(defaultVoiceModel.Locale);
+    const [voiceModels, setVoiceModels] = useState<VoiceModel[]>([]);
     const [voiceModel, setVoiceModel] = useState<VoiceModel>(defaultVoiceModel);
+
+    useEffect(() => {
+        if (currentLanguage) {
+            setLanguage(currentLanguage);
+            if (currentVoiceModel) {
+                setVoiceModel(getCurrentVoiceModel(tts, defaultVoiceModel, currentLanguage, currentVoiceModel));
+            }
+        }
+    });
 
     const updateLanguage = (l: string) => {
         const firstVoice = tts.getVoiceModels(l)[0];
