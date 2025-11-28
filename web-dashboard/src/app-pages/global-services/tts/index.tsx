@@ -26,6 +26,7 @@ export interface TTS {
     getDefaultVoiceModel: () => VoiceModel;
     getLanguages: () => string[];
     getVoiceModels: (lang: string) => VoiceModel[];
+    findVoiceModel: (shortName: string) => { language: string, voiceModel: string } | undefined;
     getVoiceBlob: (voice: VoiceModel, content: string) => Promise<Blob | undefined>;
 }
 
@@ -162,6 +163,19 @@ export const TTSProvider: React.FC<{ profile: Profile; children: React.ReactNode
     const getVoiceModels = (lang: string): VoiceModel[] =>
         languages.current[lang] ? Object.values(languages.current[lang]) : [];
 
+    const findVoiceModel = (shortName: string): { language: string, voiceModel: string } | undefined => {
+        for (const locale of Object.values(languages.current)) {
+            for (const voiceModel of Object.values(locale)) {
+                if (voiceModel.ShortName === shortName && voiceModel.DisplayName !== "default") {
+                    return {
+                        language: voiceModel.Locale,
+                        voiceModel: voiceModel.DisplayName
+                    };
+                }
+            }
+        }
+    };
+
     const getVoiceBlob = async (voice: VoiceModel, content: string): Promise<Blob | undefined> => {
         if (fetchVoiceBlobPromise.current !== undefined) return;
         if (
@@ -218,6 +232,7 @@ export const TTSProvider: React.FC<{ profile: Profile; children: React.ReactNode
         getDefaultVoiceModel,
         getLanguages,
         getVoiceModels,
+        findVoiceModel,
         getVoiceBlob,
     };
 
