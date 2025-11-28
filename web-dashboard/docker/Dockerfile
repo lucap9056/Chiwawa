@@ -17,11 +17,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+COPY package.json ./
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/static ./.next/static
-
-RUN bun install --production
 
 EXPOSE 3000
 
