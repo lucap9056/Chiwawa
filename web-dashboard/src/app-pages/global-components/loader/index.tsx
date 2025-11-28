@@ -83,7 +83,8 @@ class Loader extends EventDispatcher<EventDefinitions> {
     private state: boolean = false;
 
     public append(): Loading {
-        const id = crypto.randomUUID();
+        const id = URL.createObjectURL(new Blob());
+        URL.revokeObjectURL(id);
         const loading = new Loading(id, this);
 
         this.loadings[id] = loading;
