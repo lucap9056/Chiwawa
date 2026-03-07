@@ -27,7 +27,7 @@ const createClient = (token: string): Promise<Client<true>> => {
             reject(new Error("Discord client login timed out after 5 seconds."));
         }, 5000);
 
-        client.once("ready", (readyClient) => {
+        client.once("clientReady", (readyClient) => {
             console.log(new Date().toLocaleString(), "Bot Ready");
             clearTimeout(loginTimeout);
             resolve(readyClient);

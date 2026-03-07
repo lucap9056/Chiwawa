@@ -10,16 +10,16 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@discordjs/voice": "^0.18.0",
+    "@discordjs/voice": "^0.19.0",
     "axios": "^1.9.0",
     "connect-mongo": "^5.1.0",
-    "discord.js": "^14.19.3",
+    "discord.js": "^14.25.1",
     "dotenv": "^16.5.0",
     "ffmpeg-static": "^5.2.0",
-    "libsodium-wrappers": "^0.7.15",
     "mongodb": "^6.16.0",
     "opusscript": "^0.1.1",
-    "resultant.js": "2.0.0"
+    "resultant.js": "2.0.0",
+    "sodium-native": "^5.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.17.48",
