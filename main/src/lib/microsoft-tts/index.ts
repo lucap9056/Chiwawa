@@ -103,7 +103,7 @@ const fetchSpeech = async ({ region, apiKey }: Context, { Locale, ShortName }: V
             'Authorization': `Bearer ${apiKey}`,
             'Ocp-Apim-Subscription-Key': apiKey,
             'Content-Type': 'application/ssml+xml',
-            'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+            'X-Microsoft-OutputFormat': 'ogg-48khz-16bit-mono-opus',
             'User-Agent': 'Chiwawa'
         },
         responseType: 'arraybuffer'
