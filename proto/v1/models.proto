@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+message AppConfig {
+  string default_join_suffix = 1;
+  string default_leave_suffix = 2;
+  string default_voice_model = 3;
+  optional string tts_region = 4;
+  optional string tts_api_key = 5;
+  repeated string admins = 6;
+}
+
+message AppRuntimeInfo {
+  string id = 1;
+  string default_join_suffix = 2;
+  string default_leave_suffix = 3;
+  string default_voice_model = 4;
+}
+
+message MessageTemplate {
+  string prefix = 1;
+  string content = 2;
+  optional string suffix = 3;
+  optional string language = 4;
+  optional string voice_model = 5;
+}
+
+message SpeechNotice {
+  bool inherit_global = 1;
+  bool muted = 2;
+  MessageTemplate join_message = 3;
+  MessageTemplate leave_message = 4;
+}
+
+message UserConfig {
+  string id = 1;
+  SpeechNotice global = 2;
+  map<string, SpeechNotice> guilds = 3;
+}
