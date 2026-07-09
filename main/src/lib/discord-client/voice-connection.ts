@@ -1,7 +1,8 @@
+import { Readable } from "stream";
+
 import { AudioPlayer, AudioPlayerStatus, createAudioPlayer, createAudioResource, joinVoiceChannel, VoiceConnection } from "@discordjs/voice";
 import { GuildChannel } from "discord.js";
-import { match, None, Option, Some } from "resultant.js/rustify";
-import { Readable } from "stream";
+import { Option } from "resultant.js/rustify";
 
 export class Connection {
 
@@ -10,7 +11,7 @@ export class Connection {
 
         connection.subscribe(audioPlayer);
 
-        audioPlayer.on('stateChange', (oldState, newState) => {
+        audioPlayer.on("stateChange", (oldState, newState) => {
 
             switch (oldState.status + newState.status) {
                 case AudioPlayerStatus.Playing + AudioPlayerStatus.Idle:

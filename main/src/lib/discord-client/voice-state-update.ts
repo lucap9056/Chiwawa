@@ -9,7 +9,7 @@ const isEventFromSelf = (ctx: Context, member: GuildMember): boolean => ctx.clie
 const getHumanMemberCount = (targetChannel: GuildChannel): number => {
     const humanMembers = targetChannel.members.filter(member => !member.user.bot);
     return humanMembers.size;
-}
+};
 
 const hasHumanMembers = (targetChannel: GuildChannel) => getHumanMemberCount(targetChannel) > 0;
 
@@ -26,7 +26,7 @@ const appendVoiceConnection = (connections: Connections, channel: GuildChannel):
     const connection = new Connection(channel);
     connections.set(channel.guildId, connection);
     return connection;
-}
+};
 
 const getVoiceConnection = (connections: Connections, guildId: string): Option<Connection> => new Option(connections.get(guildId));
 
@@ -35,7 +35,7 @@ const removeVoiceConnection = (connections: Connections, guildId: string): void 
         conneciton.destory();
         connections.delete(guildId);
     });
-}
+};
 
 const isSelfInVoiceChannel = (ctx: Context, channel: GuildChannel) => channel.members.has(ctx.client.user.id);
 
@@ -44,59 +44,94 @@ const joinVoiceChannel = async (ctx: Context, channel: VoiceBasedChannel, member
     match(
         getVoiceConnection(ctx.connections, channel.guildId), {
 
-        async Some(voiceConnection) {
-            if (voiceConnection.channel.id !== channel.id || getHumanMemberCount(channel) <= 1) return;
+            async Some(voiceConnection) {
+                if (voiceConnection.channel.id !== channel.id || getHumanMemberCount(channel) <= 1) return;
 
-            const message = await generateMessages(ctx, member, true);
-            message.map(async (msg) => {
-                const speech = await ctx.tts.fetchSpeech(msg);
-                voiceConnection.queue(speech);
-            })
-        },
-
-        async None() {
-
-            if (getHumanMemberCount(channel) > 1) {
                 const message = await generateMessages(ctx, member, true);
-
-                message.map(async (value) => {
-                    const speech = await ctx.tts.fetchSpeech(value);
-                    const connection = appendVoiceConnection(ctx.connections, channel);
-                    connection.queue(speech);
+                message.map(async (msg) => {
+                    const speech = await ctx.tts.fetchSpeech(msg);
+                    voiceConnection.queue(speech);
                 });
+            },
 
-            } else {
-                appendVoiceConnection(ctx.connections, channel);
-            }
-        },
+            async None() {
 
-    });
+                if (getHumanMemberCount(channel) > 1) {
+                    const message = await generateMessages(ctx, member, true);
 
-}
+                    message.map(async (value) => {
+                        const speech = await ctx.tts.fetchSpeech(value);
+                        const connection = appendVoiceConnection(ctx.connections, channel);
+                        connection.queue(speech);
+                    });
+
+                } else {
+                    appendVoiceConnection(ctx.connections, channel);
+                }
+            },
+
+        });
+
+};
 
 const moveVoiceChannel = async (ctx: Context, joinChannel: VoiceBasedChannel, leaveChannel: VoiceBasedChannel, member: GuildMember) => {
     const guildId = member.guild.id;
 
     match(
         getVoiceConnection(ctx.connections, guildId), {
-        async Some(connection) {
+            async Some(connection) {
 
-            if (isSelfInVoiceChannel(ctx, joinChannel) && getHumanMemberCount(joinChannel) > 1) {
+                if (isSelfInVoiceChannel(ctx, joinChannel) && getHumanMemberCount(joinChannel) > 1) {
 
-                const message = await generateMessages(ctx, member, true);
+                    const message = await generateMessages(ctx, member, true);
 
-                message.map(async (value) => {
-                    const speech = await ctx.tts.fetchSpeech(value);
-                    connection.queue(speech);
-                });
+                    message.map(async (value) => {
+                        const speech = await ctx.tts.fetchSpeech(value);
+                        connection.queue(speech);
+                    });
 
-            }
+                }
 
-            if (isSelfInVoiceChannel(ctx, leaveChannel)) {
+                if (isSelfInVoiceChannel(ctx, leaveChannel)) {
 
-                if (getHumanMemberCount(leaveChannel) === 0) {
+                    if (getHumanMemberCount(leaveChannel) === 0) {
 
-                    removeVoiceConnection(ctx.connections, guildId);
+                        removeVoiceConnection(ctx.connections, guildId);
+
+                        if (getHumanMemberCount(joinChannel) > 1) {
+                            const message = await generateMessages(ctx, member, true);
+
+                            message.map(async (value) => {
+                                const speech = await ctx.tts.fetchSpeech(value);
+                                const connection = appendVoiceConnection(ctx.connections, joinChannel);
+                                connection.queue(speech);
+                            });
+
+                            return;
+                        } else {
+                            appendVoiceConnection(ctx.connections, joinChannel);
+                        }
+
+                    } else {
+
+                        const message = await generateMessages(ctx, member);
+
+                        message.map(async (value) => {
+                            const speech = await ctx.tts.fetchSpeech(value);
+                            connection.queue(speech);
+                        });
+
+                        return;
+
+                    }
+
+                    return;
+                }
+            },
+            async None() {
+
+                const joinChannel = ctx.newState.channel;
+                if (joinChannel) {
 
                     if (getHumanMemberCount(joinChannel) > 1) {
                         const message = await generateMessages(ctx, member, true);
@@ -107,50 +142,15 @@ const moveVoiceChannel = async (ctx: Context, joinChannel: VoiceBasedChannel, le
                             connection.queue(speech);
                         });
 
-                        return;
                     } else {
                         appendVoiceConnection(ctx.connections, joinChannel);
                     }
 
-                } else {
-
-                    const message = await generateMessages(ctx, member);
-
-                    message.map(async (value) => {
-                        const speech = await ctx.tts.fetchSpeech(value);
-                        connection.queue(speech);
-                    });
-
-                    return;
-
                 }
+            },
+        });
 
-                return;
-            }
-        },
-        async None() {
-
-            const joinChannel = ctx.newState.channel;
-            if (joinChannel) {
-
-                if (getHumanMemberCount(joinChannel) > 1) {
-                    const message = await generateMessages(ctx, member, true);
-
-                    message.map(async (value) => {
-                        const speech = await ctx.tts.fetchSpeech(value);
-                        const connection = appendVoiceConnection(ctx.connections, joinChannel);
-                        connection.queue(speech);
-                    });
-
-                } else {
-                    appendVoiceConnection(ctx.connections, joinChannel);
-                }
-
-            }
-        },
-    });
-
-}
+};
 
 const leaveVoiceChannel = async (ctx: Context, channel: VoiceBasedChannel, member: GuildMember) => {
     const guildId = member.guild.id;
@@ -158,39 +158,39 @@ const leaveVoiceChannel = async (ctx: Context, channel: VoiceBasedChannel, membe
     match(
         getVoiceConnection(ctx.connections, guildId), {
 
-        async Some(connection) {
-            if (connection.channel !== channel) return;
+            async Some(connection) {
+                if (connection.channel !== channel) return;
 
-            if (hasHumanMembers(channel)) {
+                if (hasHumanMembers(channel)) {
 
-                const message = await generateMessages(ctx, member);
-                message.map(async (value) => {
-                    const speech = await ctx.tts.fetchSpeech(value);
-                    connection.queue(speech);
-                });
+                    const message = await generateMessages(ctx, member);
+                    message.map(async (value) => {
+                        const speech = await ctx.tts.fetchSpeech(value);
+                        connection.queue(speech);
+                    });
 
 
-            }
-            else {
-                removeVoiceConnection(ctx.connections, guildId);
-            }
-        },
+                }
+                else {
+                    removeVoiceConnection(ctx.connections, guildId);
+                }
+            },
 
-        async None() {
-            if (hasHumanMembers(channel)) {
+            async None() {
+                if (hasHumanMembers(channel)) {
 
-                const message = await generateMessages(ctx, member);
-                message.map(async (value) => {
-                    const speech = await ctx.tts.fetchSpeech(value);
-                    const connection = appendVoiceConnection(ctx.connections, channel);
-                    connection.queue(speech);
-                });
+                    const message = await generateMessages(ctx, member);
+                    message.map(async (value) => {
+                        const speech = await ctx.tts.fetchSpeech(value);
+                        const connection = appendVoiceConnection(ctx.connections, channel);
+                        connection.queue(speech);
+                    });
 
-            }
-        },
-    });
+                }
+            },
+        });
 
-}
+};
 
 const getMember = ({ oldState, newState }: Context): Option<GuildMember> => new Option(newState.member || oldState.member);
 
@@ -204,64 +204,64 @@ const handler = (ctx: Context) => {
 
     match(
         getMember(ctx), {
-        Some(member) {
+            Some(member) {
 
-            if (isEventFromSelf(ctx, member)) {
-                const { connections } = ctx;
+                if (isEventFromSelf(ctx, member)) {
+                    const { connections } = ctx;
 
-                const voiceConnection = getVoiceConnection(connections, guild.id);
+                    const voiceConnection = getVoiceConnection(connections, guild.id);
 
-                if (isChannelMoved(ctx) && voiceConnection) {
-                    const channel = ctx.newState.channel;
+                    if (isChannelMoved(ctx) && voiceConnection) {
+                        const channel = ctx.newState.channel;
 
-                    if (hasHumanMembers(channel)) {
-                        appendVoiceConnection(connections, channel);
-                    }
-                    else {
-                        removeVoiceConnection(connections, guild.id);
+                        if (hasHumanMembers(channel)) {
+                            appendVoiceConnection(connections, channel);
+                        }
+                        else {
+                            removeVoiceConnection(connections, guild.id);
+                        }
                     }
                 }
-            }
 
-            if (isEventFromBot(member)) return;
-            const { newState, oldState } = ctx;
+                if (isEventFromBot(member)) return;
+                const { newState, oldState } = ctx;
 
-            if (newState.channel && oldState.channel) {
-                if (newState.channel.id === oldState.channel.id) return;
-                const joinChannel = newState.channel;
-                const leaveChannel = oldState.channel;
-                moveVoiceChannel(ctx, joinChannel, leaveChannel, member);
-                return;
-            }
+                if (newState.channel && oldState.channel) {
+                    if (newState.channel.id === oldState.channel.id) return;
+                    const joinChannel = newState.channel;
+                    const leaveChannel = oldState.channel;
+                    moveVoiceChannel(ctx, joinChannel, leaveChannel, member);
+                    return;
+                }
 
-            if (newState.channel) {
-                joinVoiceChannel(ctx, newState.channel, member);
-                return;
-            }
+                if (newState.channel) {
+                    joinVoiceChannel(ctx, newState.channel, member);
+                    return;
+                }
 
-            if (oldState.channel) {
-                leaveVoiceChannel(ctx, oldState.channel, member);
-                return;
-            }
+                if (oldState.channel) {
+                    leaveVoiceChannel(ctx, oldState.channel, member);
+                    return;
+                }
 
-        },
-        None() {
+            },
+            None() {
 
-        },
-    });
+            },
+        });
 
-}
+};
 
 interface Context extends Container {
-    oldState: VoiceState,
-    newState: VoiceState
+    oldState: VoiceState;
+    newState: VoiceState;
 }
 
 const createContext = (container: Container, oldState: VoiceState, newState: VoiceState): Context => {
-    return { ...container, oldState, newState }
+    return { ...container, oldState, newState };
 };
 
 export default {
     createContext,
     handler
-}
+};

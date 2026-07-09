@@ -1,28 +1,28 @@
-import { buildResult, match, None, Option, Some } from "resultant.js/rustify"
-import { AppConfig } from "structs/app-config"
+import { buildResult, match, None, Option, Some } from "resultant.js/rustify";
+import { AppConfig } from "structs/app-config";
 
 interface Context {
-    region: string
-    apiKey: string
-    languages: Languages
+    region: string;
+    apiKey: string;
+    languages: Languages;
 }
 
 const createContext = (config: AppConfig, languages: Languages): Context => {
     const region = config.ttsRegion;
     const apiKey = config.ttsApiKey;
     return { region, apiKey, languages };
-}
+};
 
 export interface TTSMessage {
-    content: string
-    language: string
-    voiceModel: string
+    content: string;
+    language: string;
+    voiceModel: string;
 }
 
 interface VoiceModel {
-    Locale: string,
-    DisplayName: string,
-    ShortName: string
+    Locale: string;
+    DisplayName: string;
+    ShortName: string;
 }
 
 const DEFAULT_VOICE_MODEL: VoiceModel = {
@@ -45,16 +45,16 @@ const fetchAvailableVoiceModels = async (region: string, apiKey: string): Promis
         }
     });
     return response.json();
-}
+};
 
 type Language = {
-    [voice: string]: VoiceModel
-}
+    [voice: string]: VoiceModel;
+};
 
 type Languages = {
-    default: { default: VoiceModel }
-    [languages: string]: Language
-}
+    default: { default: VoiceModel };
+    [languages: string]: Language;
+};
 
 const getLanguages = async (config: AppConfig) => buildResult(async () => {
     const languages: Languages = { ...emptyLanguages };
@@ -101,20 +101,20 @@ const fetchSpeech = async ({ region, apiKey }: Context, { Locale, ShortName }: V
         method: "POST",
         body,
         headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Ocp-Apim-Subscription-Key': apiKey,
-            'Content-Type': 'application/ssml+xml',
-            'X-Microsoft-OutputFormat': 'ogg-48khz-16bit-mono-opus',
-            'User-Agent': 'Chiwawa'
+            "Authorization": `Bearer ${apiKey}`,
+            "Ocp-Apim-Subscription-Key": apiKey,
+            "Content-Type": "application/ssml+xml",
+            "X-Microsoft-OutputFormat": "ogg-48khz-16bit-mono-opus",
+            "User-Agent": "Chiwawa"
         },
     });
 
     const arrayBuffer = await response.arrayBuffer();
     return Buffer.from(arrayBuffer);
-}
+};
 
 export interface MicrosoftTTS {
-    fetchSpeech: (message: TTSMessage) => Promise<Buffer>
+    fetchSpeech: (message: TTSMessage) => Promise<Buffer>;
 }
 
 const initializeTTS = async (config: AppConfig): Promise<Option<MicrosoftTTS>> => {
@@ -136,14 +136,14 @@ const initializeTTS = async (config: AppConfig): Promise<Option<MicrosoftTTS>> =
             console.error(`Error fetching speech audio: ${err.message}`);
             return None();
         },
-    })
-}
+    });
+};
 
 const createTTSMessage = (content: string, language: string, voiceModel: string): TTSMessage => {
     return { content, language, voiceModel };
-}
+};
 
 export default {
     createTTSMessage,
     initializeTTS,
-}
+};

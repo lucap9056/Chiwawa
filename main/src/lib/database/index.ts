@@ -1,21 +1,21 @@
-import { buildResult, Err, Ok, Option, Result } from "resultant.js/rustify";
+import { createEmptyAppConfig } from "lib/config";
+import { AppConfig, UserConfig } from "models";
 import { MongoClient } from "mongodb";
-import { UserConfig } from "structs/user-config";
-import { AppConfig, createEmptyAppConfig } from "structs/app-config";
+import { buildResult, Err, Ok, Option, Result } from "resultant.js/rustify";
 
 export interface AppInfo {
-    version: number
-    config: AppConfig
-    guildIds: string[]
+    version: number;
+    config: AppConfig;
+    guildIds: string[];
 }
 
 export interface Database {
-    initAppInfo: () => Promise<Result<void, Error>>
-    setGuildIds: (guildIds: string[]) => Promise<Result<void, Error>>
-    setAppConfig: (config: AppConfig) => Promise<Result<void, Error>>
-    getAppConfig: () => Promise<Result<Option<AppConfig>, Error>>
-    getUserConfig: (id: string) => Promise<Result<Option<UserConfig>, Error>>
-    close: () => Promise<void>
+    initAppInfo: () => Promise<Result<void, Error>>;
+    setGuildIds: (guildIds: string[]) => Promise<Result<void, Error>>;
+    setAppConfig: (config: AppConfig) => Promise<Result<void, Error>>;
+    getAppConfig: () => Promise<Result<Option<AppConfig>, Error>>;
+    getUserConfig: (id: string) => Promise<Result<Option<UserConfig>, Error>>;
+    close: () => Promise<void>;
 }
 
 const MAX_DB_CONNECTION_RETRIES = 5;
@@ -31,10 +31,12 @@ const connectDatabaseWithRetry = async (databaseUrl: string): Promise<MongoClien
             await client.connect();
             console.log(`Successfully connected to the database on attempt ${attempt}.`);
             return client;
-        } catch (error: any) {
-            console.error(
-                `Database connection failed on attempt ${attempt}/${MAX_DB_CONNECTION_RETRIES}. Error: ${error.message}`
-            );
+        } catch (error: unknown) {
+            if (error instanceof Error) {
+                console.error(
+                    `Database connection failed on attempt ${attempt}/${MAX_DB_CONNECTION_RETRIES}. Error: ${error.message}`
+                );
+            }
             if (attempt < MAX_DB_CONNECTION_RETRIES) {
                 const backoffDelay = initialDelayMs * Math.pow(2, attempt - 1);
                 console.log(`Retrying connection in ${backoffDelay}ms...`);
@@ -83,7 +85,7 @@ const newDatabase = (databaseUrl: string) => buildResult<Database>(async () => {
             }
         }),
         setAppConfig: (config: AppConfig) => buildResult(async () => {
-            
+
             const { acknowledged } = await app.updateOne(
                 { id },
                 { $set: { version, config } },
@@ -106,9 +108,9 @@ const newDatabase = (databaseUrl: string) => buildResult<Database>(async () => {
         close: (): Promise<void> => {
             return client.close();
         }
-    }
+    };
 });
 
 export default {
     newDatabase
-}
+};

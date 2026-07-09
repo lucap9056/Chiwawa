@@ -2,8 +2,10 @@ import { Guild, GuildMember } from "discord.js";
 import { Container } from "lib/discord-client/app-container";
 import { TTSMessage } from "lib/microsoft-tts";
 import { match, None, Option, Some } from "resultant.js/rustify";
-import { AppConfig } from "structs/app-config";
-import { MessageTemplate, SpeechNotice, UserConfig } from "structs/user-config";
+import { MessageTemplate, SpeechNotice, UserConfig } from "models";
+import { Suffix } from "lib/config";
+
+const createEmptyMessageTemplate = (): MessageTemplate => ({ prefix: "", content: "", suffix: "" });
 
 const getGuild = (member: GuildMember) => member.guild;
 
@@ -11,46 +13,47 @@ const getMemberName = (member: GuildMember) => member.nickname || member.user.gl
 
 const getSpeechNotice = ({ global, guilds }: UserConfig, { id }: Guild): SpeechNotice => {
     const guild = guilds[id];
-    return (guild && !guild.inheritGlobal) ? guild : global;
-}
+    return (guild && !guild.inheritGlobal) ? guild : global!;
+};
 
 const getLanguage = (message: MessageTemplate) => message.language || "";
 
 const getVoiceModel = (message: MessageTemplate) => message.voiceModel || "";
 
 const getJoinMessage = (memberName: string, { joinMessage }: SpeechNotice, defaultSuffix: string) => {
-    const prefix = joinMessage.prefix.trim();
-    const content = joinMessage.content || memberName;
-    const suffix = joinMessage.suffix === undefined ? "" : (joinMessage.suffix || "").trim() || defaultSuffix;
+    const message: MessageTemplate = joinMessage || createEmptyMessageTemplate();
+    const prefix = message.prefix.trim();
+    const content = message.content || memberName;
+    const suffix = message.suffix === undefined ? "" : (message.suffix || "").trim() || defaultSuffix;
     return prefix + content + suffix;
-}
+};
 
 const getLeaveMessage = (memberName: string, { joinMessage, leaveMessage }: SpeechNotice, defaultSuffix: string) => {
-    const prefix = (leaveMessage.prefix || joinMessage.prefix).trim();
-    const content = leaveMessage.content || joinMessage.content || memberName;
-    const suffix = leaveMessage.suffix === undefined ? "" : (leaveMessage.suffix || joinMessage.suffix || "").trim() || defaultSuffix;
+    const jMessage: MessageTemplate = joinMessage || createEmptyMessageTemplate();
+    const lMessage: MessageTemplate = leaveMessage || createEmptyMessageTemplate();
+    const prefix = (lMessage.prefix || jMessage.prefix).trim();
+    const content = lMessage.content || jMessage.content || memberName;
+    const suffix = lMessage.suffix === undefined ? "" : (lMessage.suffix || jMessage.suffix || "").trim() || defaultSuffix;
     return prefix + content + suffix;
-}
+};
 
-const getSpeechNoticeFromMemberName = ({ defaultJoinSuffix, defaultLeaveSuffix }: AppConfig, memberName: string, join: boolean = false): TTSMessage => {
+const getSpeechNoticeFromMemberName = (defaultSuffix: Suffix, memberName: string, join: boolean = false): TTSMessage => {
 
     const removeSuffix = /\.$/.test(memberName);
-    const suffix = removeSuffix ? "" : (join) ? defaultJoinSuffix : defaultLeaveSuffix;
+    const suffix = removeSuffix ? "" : (join) ? defaultSuffix.join : defaultSuffix.leave;
 
     const content = memberName.replace(/:.*/, "") + suffix;
 
-    const voiceName = /:/.test(memberName) ? memberName.replace(/.*:|\.$/g, '') : "";
+    const voiceName = /:/.test(memberName) ? memberName.replace(/.*:|\.$/g, "") : "";
 
     const language = voiceName.replace(/[0-9a-zA-Z]*$/, "").replace(/-$/, "");
     const voiceModel = voiceName.replace(/.*-/g, "");
 
-    return { content, language, voiceModel }
-}
+    return { content, language, voiceModel };
+};
 
 export const generateMessages = async ({ config, database }: Container, member: GuildMember, join: boolean = false): Promise<Option<TTSMessage>> => {
-
-    const { defaultJoinSuffix, defaultLeaveSuffix } = config;
-
+    const defaultSuffix = config.defaultSuffix();
     const guild = getGuild(member);
 
     const memberName = getMemberName(member);
@@ -67,32 +70,35 @@ export const generateMessages = async ({ config, database }: Container, member: 
                     const notification = getSpeechNotice(value, guild);
                     if (notification.muted) return None();
 
-                    if (join) {
-                        const content = getJoinMessage(memberName, notification, defaultJoinSuffix);
+                    const joinMessage = notification.joinMessage || createEmptyMessageTemplate();
+                    const leaveMessage = notification.leaveMessage || createEmptyMessageTemplate();
 
-                        const language = getLanguage(notification.joinMessage);
-                        const voiceModel = getVoiceModel(notification.joinMessage);
+                    if (join) {
+                        const content = getJoinMessage(memberName, notification, defaultSuffix.join);
+
+                        const language = getLanguage(joinMessage);
+                        const voiceModel = getVoiceModel(joinMessage);
 
                         return Some({ content, language, voiceModel });
                     } else {
-                        const content = getLeaveMessage(memberName, notification, defaultLeaveSuffix);
+                        const content = getLeaveMessage(memberName, notification, defaultSuffix.leave);
 
-                        const language = getLanguage(notification.leaveMessage);
-                        const voiceModel = getVoiceModel(notification.leaveMessage);
+                        const language = getLanguage(leaveMessage);
+                        const voiceModel = getVoiceModel(leaveMessage);
 
                         return Some({ content, language, voiceModel });
                     }
                 },
                 None() {
-                    const message = getSpeechNoticeFromMemberName(config, memberName, join);
-                    return Some(message)
+                    const message = getSpeechNoticeFromMemberName(defaultSuffix, memberName, join);
+                    return Some(message);
                 }
-            })
+            });
         },
         async None() {
-            const message = getSpeechNoticeFromMemberName(config, memberName, join);
-            return Some(message)
+            const message = getSpeechNoticeFromMemberName(defaultSuffix, memberName, join);
+            return Some(message);
         },
     });
 
-}
+};

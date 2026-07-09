@@ -1,11 +1,12 @@
 import { Client, GatewayIntentBits, Partials, VoiceState } from "discord.js";
-import { AppRuntimeConfig } from "lib/config";
+import { RuntimeConfig } from "lib/config";
 import { Database } from "lib/database";
-import voiceStateUpdate from "lib/discord-client/voice-state-update";
 import appContainer, { Container } from "lib/discord-client/app-container";
-import appInfoUpdate from "lib/discord-client/app-info-update"
+import appInfoUpdate from "lib/discord-client/app-info-update";
+import voiceStateUpdate from "lib/discord-client/voice-state-update";
 import { MicrosoftTTS } from "lib/microsoft-tts";
 import { Option } from "resultant.js/rustify";
+
 import { Connection } from "./voice-connection";
 
 
@@ -21,7 +22,7 @@ const createClient = (token: string): Promise<Client<true>> => {
         ]
     });
 
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
 
         const loginTimeout = setTimeout(() => {
             reject(new Error("Discord client login timed out after 5 seconds."));
@@ -33,16 +34,13 @@ const createClient = (token: string): Promise<Client<true>> => {
             resolve(readyClient);
         });
 
-        try {
-            await client.login(token);
-        }
-        catch (error) {
+        client.login(token).catch((error: unknown) => {
             clearTimeout(loginTimeout);
-            reject(new Error(`Failed to log in to Discord: ${(error as Error).message}`));
-        }
-
+            const errorMessage = (error instanceof Error) ? error.message : "";
+            reject(new Error(`Failed to log in to Discord: ${errorMessage}`));
+        });
     });
-}
+};
 
 const listenJoinedGuildsUpdate = async (client: Client, database: Database): Promise<void> => {
     await client.guilds.fetch();
@@ -50,20 +48,20 @@ const listenJoinedGuildsUpdate = async (client: Client, database: Database): Pro
     client.on("guildCreate", update);
     client.on("guildDelete", update);
     update();
-}
+};
 
 const listenVoiceStateUpdate = (container: Container) => {
     container.client.on("voiceStateUpdate", (oldState: VoiceState, newState: VoiceState) => {
         const ctx = voiceStateUpdate.createContext(container, oldState, newState);
         voiceStateUpdate.handler(ctx);
     });
-}
+};
 
 export interface DiscordClient {
-    destroy: () => Promise<void>
+    destroy: () => Promise<void>;
 }
 
-const newClient = async (config: AppRuntimeConfig, tts: Option<MicrosoftTTS>, database: Option<Database>) => {
+const newClient = async (config: RuntimeConfig, tts: Option<MicrosoftTTS>, database: Option<Database>) => {
 
     const client = await createClient(config.discordToken);
 
@@ -76,7 +74,7 @@ const newClient = async (config: AppRuntimeConfig, tts: Option<MicrosoftTTS>, da
     });
 
     tts.map((t) => {
-        const container = appContainer.createContainer(config, client, t, database, connections);
+        const container = appContainer.createContainer(config.appConfig, client, t, database, connections);
         listenVoiceStateUpdate(container);
     });
 
@@ -87,9 +85,9 @@ const newClient = async (config: AppRuntimeConfig, tts: Option<MicrosoftTTS>, da
             }
             await client.destroy();
         }
-    }
-}
+    };
+};
 
 export default {
     newClient
-}
+};
