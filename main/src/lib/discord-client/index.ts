@@ -1,29 +1,21 @@
-import { Client, GatewayIntentBits, Partials, VoiceState } from "discord.js";
-import { RuntimeConfig } from "lib/config";
-import { Database } from "lib/database";
-import appContainer, { Container } from "lib/discord-client/app-container";
+import { Client, GatewayIntentBits, Partials, type VoiceState } from "discord.js";
+import type { RuntimeConfig } from "lib/config";
+import type { Database } from "lib/database";
+import appContainer, { type Container } from "lib/discord-client/app-container";
 import appInfoUpdate from "lib/discord-client/app-info-update";
 import voiceStateUpdate from "lib/discord-client/voice-state-update";
-import { MicrosoftTTS } from "lib/microsoft-tts";
-import { Option } from "resultant.js/rustify";
+import type { MicrosoftTTS } from "lib/microsoft-tts";
+import type { Option } from "resultant.js/rustify";
 
-import { Connection } from "./voice-connection";
-
+import type { Connection } from "./voice-connection";
 
 const createClient = (token: string): Promise<Client<true>> => {
     const client = new Client({
-        intents: [
-            GatewayIntentBits.Guilds,
-            GatewayIntentBits.GuildMembers,
-            GatewayIntentBits.GuildVoiceStates,
-        ],
-        partials: [
-            Partials.Channel
-        ]
+        intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildVoiceStates],
+        partials: [Partials.Channel],
     });
 
     return new Promise((resolve, reject) => {
-
         const loginTimeout = setTimeout(() => {
             reject(new Error("Discord client login timed out after 5 seconds."));
         }, 5000);
@@ -36,7 +28,7 @@ const createClient = (token: string): Promise<Client<true>> => {
 
         client.login(token).catch((error: unknown) => {
             clearTimeout(loginTimeout);
-            const errorMessage = (error instanceof Error) ? error.message : "";
+            const errorMessage = error instanceof Error ? error.message : "";
             reject(new Error(`Failed to log in to Discord: ${errorMessage}`));
         });
     });
@@ -62,7 +54,6 @@ export interface DiscordClient {
 }
 
 const newClient = async (config: RuntimeConfig, tts: Option<MicrosoftTTS>, database: Option<Database>) => {
-
     const client = await createClient(config.discordToken);
 
     const connections = new Map<string, Connection>();
@@ -84,10 +75,10 @@ const newClient = async (config: RuntimeConfig, tts: Option<MicrosoftTTS>, datab
                 connection.destory();
             }
             await client.destroy();
-        }
+        },
     };
 };
 
 export default {
-    newClient
+    newClient,
 };

@@ -6,7 +6,9 @@
   "scripts": {
     "start": "bun src/index.ts",
     "build": "bun build src/index.ts --compile --outfile main",
-    "proto:compile": "bunx protoc -I=../proto/v1 --ts_proto_out=./src/models --ts_proto_opt=exportCommonSymbols=true ../proto/v1/*.proto"
+    "proto:compile": "bunx protoc -I=../proto/v1 --ts_proto_out=./src/models --ts_proto_opt=exportCommonSymbols=true ../proto/v1/*.proto",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write ."
   },
   "author": "",
   "license": "MIT",
@@ -22,6 +24,7 @@
     "sodium-native": "^5.1.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.5",
     "@types/bun": "^1.3.14",
     "typescript": "^5.8.3"
   }

@@ -1,18 +1,22 @@
-import { Readable } from "stream";
-
-import { AudioPlayer, AudioPlayerStatus, createAudioPlayer, createAudioResource, joinVoiceChannel, VoiceConnection } from "@discordjs/voice";
-import { GuildChannel } from "discord.js";
+import { Readable } from "node:stream";
+import {
+    type AudioPlayer,
+    AudioPlayerStatus,
+    createAudioPlayer,
+    createAudioResource,
+    joinVoiceChannel,
+    type VoiceConnection,
+} from "@discordjs/voice";
+import type { GuildChannel } from "discord.js";
 import { Option } from "resultant.js/rustify";
 
 export class Connection {
-
     private static createAudioPlayer(connection: VoiceConnection, playbackCompletedHandler: () => void): AudioPlayer {
         const audioPlayer = createAudioPlayer();
 
         connection.subscribe(audioPlayer);
 
         audioPlayer.on("stateChange", (oldState, newState) => {
-
             switch (oldState.status + newState.status) {
                 case AudioPlayerStatus.Playing + AudioPlayerStatus.Idle:
                     playbackCompletedHandler();
@@ -34,7 +38,7 @@ export class Connection {
         const connection = joinVoiceChannel({
             channelId: channel.id,
             guildId: channel.guild.id,
-            adapterCreator: channel.guild.voiceAdapterCreator
+            adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
         this.connection = connection;
@@ -61,7 +65,6 @@ export class Connection {
         if (state.status === AudioPlayerStatus.Idle) {
             this.playNext();
         }
-
     }
 
     private playNext() {
@@ -69,12 +72,11 @@ export class Connection {
 
         const fileBuffer = new Option(queues.shift());
 
-        fileBuffer.map(Readable.from)
+        fileBuffer
+            .map(Readable.from)
             .map(createAudioResource)
             .map((audioResource) => {
                 audioPlayer.play(audioResource);
             });
-
     }
-
 }

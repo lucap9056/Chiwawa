@@ -1,5 +1,5 @@
-import { buildResult, match, None, Option, Some } from "resultant.js/rustify";
-import { AppConfig } from "structs/app-config";
+import { buildResult, match, None, type Option, Some } from "resultant.js/rustify";
+import type { AppConfig } from "structs/app-config";
 
 interface Context {
     region: string;
@@ -28,7 +28,7 @@ interface VoiceModel {
 const DEFAULT_VOICE_MODEL: VoiceModel = {
     Locale: "Locale",
     DisplayName: "HsiaoChen",
-    ShortName: "zh-TW-HsiaoChenNeural"
+    ShortName: "zh-TW-HsiaoChenNeural",
 };
 
 const emptyLanguages: Languages = { default: { default: DEFAULT_VOICE_MODEL } };
@@ -40,9 +40,9 @@ const getApiKey = (config: AppConfig) => config.ttsApiKey;
 const fetchAvailableVoiceModels = async (region: string, apiKey: string): Promise<VoiceModel[]> => {
     const response = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`, {
         headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Ocp-Apim-Subscription-Key": apiKey
-        }
+            Authorization: `Bearer ${apiKey}`,
+            "Ocp-Apim-Subscription-Key": apiKey,
+        },
     });
     return response.json();
 };
@@ -56,41 +56,48 @@ type Languages = {
     [languages: string]: Language;
 };
 
-const getLanguages = async (config: AppConfig) => buildResult(async () => {
-    const languages: Languages = { ...emptyLanguages };
+const getLanguages = async (config: AppConfig) =>
+    buildResult(async () => {
+        const languages: Languages = { ...emptyLanguages };
 
-    const region = getRegion(config);
-    const apiKey = getApiKey(config);
+        const region = getRegion(config);
+        const apiKey = getApiKey(config);
 
-    if (!region || region === "") {
-        throw new Error("TTS region is not configured or is empty.");
-    }
-    if (!apiKey || apiKey === "") {
-        throw new Error("TTS API key is not configured or is empty.");
-    }
-
-    for (const { Locale, DisplayName, ShortName } of await fetchAvailableVoiceModels(region, apiKey)) {
-        if (!languages[Locale]) {
-            languages[Locale] = {};
+        if (!region || region === "") {
+            throw new Error("TTS region is not configured or is empty.");
+        }
+        if (!apiKey || apiKey === "") {
+            throw new Error("TTS API key is not configured or is empty.");
         }
 
-        const voiceModel: VoiceModel = { Locale, DisplayName, ShortName };
+        for (const { Locale, DisplayName, ShortName } of await fetchAvailableVoiceModels(region, apiKey)) {
+            if (!languages[Locale]) {
+                languages[Locale] = {};
+            }
 
-        languages[Locale][DisplayName] = voiceModel;
+            const voiceModel: VoiceModel = { Locale, DisplayName, ShortName };
 
-        if (ShortName === config.defaultVoiceModel) {
-            languages.default = { default: voiceModel };
+            languages[Locale][DisplayName] = voiceModel;
+
+            if (ShortName === config.defaultVoiceModel) {
+                languages.default = { default: voiceModel };
+            }
         }
-    }
 
-    return languages;
-});
+        return languages;
+    });
 
-const getTTSMessageLanguage = ({ languages }: Context, language: string): Language => languages[language] || languages.default;
+const getTTSMessageLanguage = ({ languages }: Context, language: string): Language =>
+    languages[language] || languages.default;
 
-const getTTSMessageVoiceModel = (language: Language, voiceName: string): VoiceModel => language[voiceName] || Object.values(language)[0];
+const getTTSMessageVoiceModel = (language: Language, voiceName: string): VoiceModel =>
+    language[voiceName] || Object.values(language)[0];
 
-const fetchSpeech = async ({ region, apiKey }: Context, { Locale, ShortName }: VoiceModel, content: string): Promise<Buffer> => {
+const fetchSpeech = async (
+    { region, apiKey }: Context,
+    { Locale, ShortName }: VoiceModel,
+    content: string,
+): Promise<Buffer> => {
     const body = `
 <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${Locale}">
     <voice name="${ShortName}">${content}</voice>
@@ -101,11 +108,11 @@ const fetchSpeech = async ({ region, apiKey }: Context, { Locale, ShortName }: V
         method: "POST",
         body,
         headers: {
-            "Authorization": `Bearer ${apiKey}`,
+            Authorization: `Bearer ${apiKey}`,
             "Ocp-Apim-Subscription-Key": apiKey,
             "Content-Type": "application/ssml+xml",
             "X-Microsoft-OutputFormat": "ogg-48khz-16bit-mono-opus",
-            "User-Agent": "Chiwawa"
+            "User-Agent": "Chiwawa",
         },
     });
 
@@ -129,7 +136,7 @@ const initializeTTS = async (config: AppConfig): Promise<Option<MicrosoftTTS>> =
                     const languageMap = getTTSMessageLanguage(ctx, message.language);
                     const voiceModel = getTTSMessageVoiceModel(languageMap, message.voiceModel);
                     return fetchSpeech(ctx, voiceModel, message.content);
-                }
+                },
             });
         },
         Err(err) {

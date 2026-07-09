@@ -1,9 +1,9 @@
-import { Guild, GuildMember } from "discord.js";
-import { Container } from "lib/discord-client/app-container";
-import { TTSMessage } from "lib/microsoft-tts";
-import { match, None, Option, Some } from "resultant.js/rustify";
-import { MessageTemplate, SpeechNotice, UserConfig } from "models";
-import { Suffix } from "lib/config";
+import type { Guild, GuildMember } from "discord.js";
+import type { Suffix } from "lib/config";
+import type { Container } from "lib/discord-client/app-container";
+import type { TTSMessage } from "lib/microsoft-tts";
+import type { MessageTemplate, SpeechNotice, UserConfig } from "models";
+import { match, None, type Option, Some } from "resultant.js/rustify";
 
 const createEmptyMessageTemplate = (): MessageTemplate => ({ prefix: "", content: "", suffix: "" });
 
@@ -13,7 +13,9 @@ const getMemberName = (member: GuildMember) => member.nickname || member.user.gl
 
 const getSpeechNotice = ({ global, guilds }: UserConfig, { id }: Guild): SpeechNotice => {
     const guild = guilds[id];
-    return (guild && !guild.inheritGlobal) ? guild : global!;
+    return guild && !guild.inheritGlobal
+        ? guild
+        : global || { inheritGlobal: false, muted: true, joinMessage: undefined, leaveMessage: undefined };
 };
 
 const getLanguage = (message: MessageTemplate) => message.language || "";
@@ -33,14 +35,18 @@ const getLeaveMessage = (memberName: string, { joinMessage, leaveMessage }: Spee
     const lMessage: MessageTemplate = leaveMessage || createEmptyMessageTemplate();
     const prefix = (lMessage.prefix || jMessage.prefix).trim();
     const content = lMessage.content || jMessage.content || memberName;
-    const suffix = lMessage.suffix === undefined ? "" : (lMessage.suffix || jMessage.suffix || "").trim() || defaultSuffix;
+    const suffix =
+        lMessage.suffix === undefined ? "" : (lMessage.suffix || jMessage.suffix || "").trim() || defaultSuffix;
     return prefix + content + suffix;
 };
 
-const getSpeechNoticeFromMemberName = (defaultSuffix: Suffix, memberName: string, join: boolean = false): TTSMessage => {
-
+const getSpeechNoticeFromMemberName = (
+    defaultSuffix: Suffix,
+    memberName: string,
+    join: boolean = false,
+): TTSMessage => {
     const removeSuffix = /\.$/.test(memberName);
-    const suffix = removeSuffix ? "" : (join) ? defaultSuffix.join : defaultSuffix.leave;
+    const suffix = removeSuffix ? "" : join ? defaultSuffix.join : defaultSuffix.leave;
 
     const content = memberName.replace(/:.*/, "") + suffix;
 
@@ -52,7 +58,11 @@ const getSpeechNoticeFromMemberName = (defaultSuffix: Suffix, memberName: string
     return { content, language, voiceModel };
 };
 
-export const generateMessages = async ({ config, database }: Container, member: GuildMember, join: boolean = false): Promise<Option<TTSMessage>> => {
+export const generateMessages = async (
+    { config, database }: Container,
+    member: GuildMember,
+    join: boolean = false,
+): Promise<Option<TTSMessage>> => {
     const defaultSuffix = config.defaultSuffix();
     const guild = getGuild(member);
 
@@ -60,10 +70,9 @@ export const generateMessages = async ({ config, database }: Container, member: 
 
     return match(database, {
         async Some(db) {
-
-            const getUser = await db.getUserConfig(member.user.id).then(
-                getUser => match(getUser, { Ok: (value) => value, Err: () => None<UserConfig>() })
-            );
+            const getUser = await db
+                .getUserConfig(member.user.id)
+                .then((getUser) => match(getUser, { Ok: (value) => value, Err: () => None<UserConfig>() }));
 
             return match(getUser, {
                 Some(value) {
@@ -92,7 +101,7 @@ export const generateMessages = async ({ config, database }: Container, member: 
                 None() {
                     const message = getSpeechNoticeFromMemberName(defaultSuffix, memberName, join);
                     return Some(message);
-                }
+                },
             });
         },
         async None() {
@@ -100,5 +109,4 @@ export const generateMessages = async ({ config, database }: Container, member: 
             return Some(message);
         },
     });
-
 };

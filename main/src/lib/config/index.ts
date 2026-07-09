@@ -1,9 +1,9 @@
-import { AppConfig } from "models";
+import type { AppConfig } from "models";
 
 export interface Suffix {
-    join: string; leave: string;
+    join: string;
+    leave: string;
 }
-
 
 export interface AppConfigStore {
     snapshot: () => AppConfig;
@@ -19,20 +19,21 @@ const createAppConfigStore = (initial: AppConfig): AppConfigStore => {
     let current: AppConfig = copyAppConfig(initial);
     return {
         snapshot: (): AppConfig => copyAppConfig(current),
-        set: (config: AppConfig): void => { current = copyAppConfig(config); },
+        set: (config: AppConfig): void => {
+            current = copyAppConfig(config);
+        },
         defaultSuffix: (): Suffix => ({
             join: current.defaultJoinSuffix,
-            leave: current.defaultLeaveSuffix
+            leave: current.defaultLeaveSuffix,
         }),
         tts: (): { region: string; apiKey: string; defaultVoiceModel: string } => ({
             region: current.ttsRegion || "",
             apiKey: current.ttsApiKey || "",
-            defaultVoiceModel: current.defaultVoiceModel
+            defaultVoiceModel: current.defaultVoiceModel,
         }),
         admins: (): string[] => [...current.admins],
     };
 };
-
 
 export const createEmptyAppConfig = (): AppConfig => ({
     defaultJoinSuffix: "",
@@ -40,7 +41,7 @@ export const createEmptyAppConfig = (): AppConfig => ({
     defaultVoiceModel: "",
     ttsRegion: "",
     ttsApiKey: "",
-    admins: (process.env["ADMINS"] || "").split(/,/),
+    admins: (process.env.ADMINS || "").split(/,/),
 });
 
 export interface RuntimeConfig {
@@ -53,20 +54,20 @@ export interface RuntimeConfig {
 const loadConfig = (): RuntimeConfig => {
     return {
         appConfig: createAppConfigStore({
-            defaultJoinSuffix: process.env["DEFAULT_JOIN_SUFFIX"] || "",
-            defaultLeaveSuffix: process.env["DEFAULT_LEAVE_SUFFIX"] || "",
-            defaultVoiceModel: process.env["DEFAULT_VOICE_MODEL"] || "",
-            ttsRegion: process.env["TTS_REGION"] || "",
-            ttsApiKey: process.env["TTS_API_KEY"] || "",
-            admins: (process.env["ADMINS"] || "").split(/,/),
+            defaultJoinSuffix: process.env.DEFAULT_JOIN_SUFFIX || "",
+            defaultLeaveSuffix: process.env.DEFAULT_LEAVE_SUFFIX || "",
+            defaultVoiceModel: process.env.DEFAULT_VOICE_MODEL || "",
+            ttsRegion: process.env.TTS_REGION || "",
+            ttsApiKey: process.env.TTS_API_KEY || "",
+            admins: (process.env.ADMINS || "").split(/,/),
         }),
         //
-        discordToken: process.env["APP_DISCORD_TOKEN"] || "",
-        databaseUrl: process.env["DATABASE_URL"] || "",
-        redisUrl: process.env["REDIS_URL"] || "",
+        discordToken: process.env.APP_DISCORD_TOKEN || "",
+        databaseUrl: process.env.DATABASE_URL || "",
+        redisUrl: process.env.REDIS_URL || "",
     };
 };
 
 export default {
-    loadConfig
+    loadConfig,
 };
