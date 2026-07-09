@@ -1,4 +1,3 @@
-import axios from "axios"
 import { buildResult, match, None, Option, Some } from "resultant.js/rustify"
 import { AppConfig } from "structs/app-config"
 
@@ -39,13 +38,13 @@ const getRegion = (config: AppConfig) => config.ttsRegion;
 const getApiKey = (config: AppConfig) => config.ttsApiKey;
 
 const fetchAvailableVoiceModels = async (region: string, apiKey: string): Promise<VoiceModel[]> => {
-    const response = await axios.get(`https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`, {
+    const response = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`, {
         headers: {
             "Authorization": `Bearer ${apiKey}`,
             "Ocp-Apim-Subscription-Key": apiKey
         }
     });
-    return response.data;
+    return response.json();
 }
 
 type Language = {
@@ -98,7 +97,9 @@ const fetchSpeech = async ({ region, apiKey }: Context, { Locale, ShortName }: V
 </speak>
 `;
 
-    const response = await axios.post<ArrayBuffer>(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, body, {
+    const response = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+        method: "POST",
+        body,
         headers: {
             'Authorization': `Bearer ${apiKey}`,
             'Ocp-Apim-Subscription-Key': apiKey,
@@ -106,10 +107,10 @@ const fetchSpeech = async ({ region, apiKey }: Context, { Locale, ShortName }: V
             'X-Microsoft-OutputFormat': 'ogg-48khz-16bit-mono-opus',
             'User-Agent': 'Chiwawa'
         },
-        responseType: 'arraybuffer'
     });
 
-    return Buffer.from(response.data);
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
 }
 
 export interface MicrosoftTTS {
