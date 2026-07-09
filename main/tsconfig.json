@@ -1,5 +1,8 @@
 {
   "compilerOptions": {
+    "types": [
+      "bun"
+    ],
     "target": "esnext",
     "module": "preserve",
     "moduleResolution": "bundler",
