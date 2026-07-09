@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "moduleResolution": "node16",
-    "module": "node16",
+    "target": "esnext",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "moduleDetection": "force",
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
