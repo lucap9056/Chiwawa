@@ -1,8 +1,15 @@
 import { EventEmitter } from "node:events";
 import { RedisClient } from "bun";
 import { AppConfig } from "models";
-import { buildResult, type Result } from "resultant.js/rustify";
-import { CONFIG_UPDATED_CHANNEL, GUILD_IDS_KEY, GUILDS_UPDATED_CHANNEL, type GuildEvent, type GuildEventType } from "./protocol";
+import { buildResult, match, None, type Option, type Result, Some } from "resultant.js/rustify";
+import {
+    CONFIG_UPDATED_CHANNEL,
+    GUILD_IDS_KEY,
+    GUILDS_UPDATED_CHANNEL,
+    type GuildEvent,
+    type GuildEventType,
+    SPEECH_CACHE_PREFIX,
+} from "./protocol";
 
 export interface CacheEvents {
     configUpdated: [config: AppConfig];
@@ -12,10 +19,19 @@ export interface CacheEvents {
     reconnected: [];
 }
 
+// hit: false means nothing cached yet. speech: None means cached as "muted".
+export type SpeechCacheLookup = { hit: false } | { hit: true; speech: Option<Buffer> };
+
 export interface Cache extends EventEmitter<CacheEvents> {
     syncGuildIds: (guildIds: string[]) => Promise<Result<void, Error>>;
     addGuild: (guildId: string) => Promise<Result<void, Error>>;
     removeGuild: (guildId: string) => Promise<Result<void, Error>>;
+    // Identity-keyed (userId+guildId+join/leave), not content-keyed — one Redis round
+    // trip replaces both the Postgres lookup and the TTS call on a hit. There's no
+    // active invalidation: whoever writes a user's settings is responsible for
+    // deleting the matching keys (see proto/v1/redis.md).
+    getSpeech: (userId: string, guildId: string, join: boolean) => Promise<Result<SpeechCacheLookup, Error>>;
+    setSpeech: (userId: string, guildId: string, join: boolean, speech: Option<Buffer>) => Promise<Result<void, Error>>;
     close: () => Promise<void>;
 }
 
@@ -23,6 +39,9 @@ const publishGuildEvent = (rdb: RedisClient, type: GuildEventType, guildId: stri
     const event: GuildEvent = { type, guildId };
     return rdb.publish(GUILDS_UPDATED_CHANNEL, JSON.stringify(event));
 };
+
+const speechCacheKey = (userId: string, guildId: string, join: boolean): string =>
+    `${SPEECH_CACHE_PREFIX}:${userId}:${guildId}:${join ? "join" : "leave"}`;
 
 const newCache = (redisUrl: string) =>
     buildResult<Cache>(async () => {
@@ -76,6 +95,19 @@ const newCache = (redisUrl: string) =>
                 buildResult(async () => {
                     await rdb.srem(GUILD_IDS_KEY, guildId);
                     await publishGuildEvent(rdb, "leave", guildId);
+                }),
+
+            getSpeech: (userId: string, guildId: string, join: boolean) =>
+                buildResult(async (): Promise<SpeechCacheLookup> => {
+                    const raw = await rdb.getBuffer(speechCacheKey(userId, guildId, join));
+                    if (raw === null) return { hit: false };
+                    return { hit: true, speech: raw.length === 0 ? None<Buffer>() : Some(Buffer.from(raw)) };
+                }),
+
+            setSpeech: (userId: string, guildId: string, join: boolean, speech: Option<Buffer>) =>
+                buildResult(async () => {
+                    const value = match(speech, { Some: (buf) => buf, None: () => Buffer.alloc(0) });
+                    await rdb.set(speechCacheKey(userId, guildId, join), value);
                 }),
 
             close: async () => {

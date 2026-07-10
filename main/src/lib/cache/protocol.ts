@@ -3,6 +3,7 @@
 export const GUILD_IDS_KEY = "chiwawa:v1:guild_ids";
 export const CONFIG_UPDATED_CHANNEL = "chiwawa:v1:config:updated";
 export const GUILDS_UPDATED_CHANNEL = "chiwawa:v1:guilds:updated";
+export const SPEECH_CACHE_PREFIX = "chiwawa:v1:speech";
 
 export type GuildEventType = "join" | "leave";
 
