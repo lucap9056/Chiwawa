@@ -1,23 +1,23 @@
 import { SQL } from "bun";
-import type { AppConfig, MessageTemplate } from "models";
+import type { AppConfig, MessageTemplate, SpeechNotice } from "models";
 import { buildResult, None, type Option, type Result, Some } from "resultant.js/rustify";
 
-export class UserConfigNotFoundError extends Error {
-    constructor() {
-        super("database: user has no config row");
-        this.name = "UserConfigNotFoundError";
+export class NotFoundError extends Error {
+    constructor(detail?: string) {
+        super(detail ? `database: not found: ${detail}` : "database: not found");
+        this.name = "NotFoundError";
     }
 }
 
-export const isNotFound = (error: Error): boolean => error instanceof UserConfigNotFoundError;
+export const isNotFound = (error: Error): boolean => error instanceof NotFoundError;
 
 export interface Database {
-    initAppConfig: () => Promise<Result<void, Error>>;
+    initAppConfig: (config: AppConfig) => Promise<Result<void, Error>>;
     getAppConfig: () => Promise<Result<Option<AppConfig>, Error>>;
     setAppConfig: (config: AppConfig) => Promise<Result<void, Error>>;
-    // None: user has a config and is muted for this guild. Some: speak this template.
-    getUserJoinMessage: (userId: string, guildId: string) => Promise<Result<Option<MessageTemplate>, Error>>;
-    getUserLeaveMessage: (userId: string, guildId: string) => Promise<Result<Option<MessageTemplate>, Error>>;
+    // Already resolved: guild overrides global unless the guild has no notice
+    // or explicitly inherits, so the caller never sees the raw guild/global pair.
+    getUserSpeechNotice: (userId: string, guildId: string) => Promise<Result<SpeechNotice, Error>>;
     close: () => Promise<void>;
 }
 
@@ -32,28 +32,24 @@ interface AppConfigRow {
     admins: string[] | null;
 }
 
-interface UserMessageRow {
-    prefix: string | null;
-    content: string | null;
-    suffix: string | null;
-    language: string | null;
-    voice_model: string | null;
+interface UserSpeechNoticeRow {
     muted: boolean;
+    join_message: MessageTemplate | null;
+    leave_message: MessageTemplate | null;
 }
 
-const toMessageTemplate = (row: UserMessageRow): MessageTemplate => ({
-    prefix: row.prefix ?? "",
-    content: row.content ?? "",
-    suffix: row.suffix ?? undefined,
-    language: row.language ?? undefined,
-    voiceModel: row.voice_model ?? undefined,
-});
-
-const toUserMessageOption = (row: UserMessageRow | undefined): Option<MessageTemplate> => {
+// inheritGlobal is always false here — this is already the resolved notice,
+// there's nothing further for the caller to inherit from.
+const toSpeechNotice = (row: UserSpeechNoticeRow | undefined): SpeechNotice => {
     if (!row) {
-        throw new UserConfigNotFoundError();
+        throw new NotFoundError("user config");
     }
-    return row.muted ? None<MessageTemplate>() : Some(toMessageTemplate(row));
+    return {
+        inheritGlobal: false,
+        muted: row.muted,
+        joinMessage: row.join_message ?? undefined,
+        leaveMessage: row.leave_message ?? undefined,
+    };
 };
 
 const parseSnowflake = (label: string, value: string): bigint => {
@@ -74,11 +70,11 @@ const newDatabase = (databaseUrl: string) =>
         await sql.connect();
 
         return {
-            initAppConfig: () =>
+            initAppConfig: (config: AppConfig) =>
                 buildResult(async () => {
                     await sql`
                         INSERT INTO app_runtime_info (id, default_join_suffix, default_leave_suffix, default_voice_model, tts_region, tts_api_key, admins)
-                        VALUES (${APP_CONFIG_ROW_ID}, '', '', '', '', '', '{}')
+                        VALUES (${APP_CONFIG_ROW_ID}, ${config.defaultJoinSuffix}, ${config.defaultLeaveSuffix}, ${config.defaultVoiceModel}, ${config.ttsRegion}, ${config.ttsApiKey}, ${config.admins})
                         ON CONFLICT (id) DO NOTHING
                     `;
                 }),
@@ -117,50 +113,27 @@ const newDatabase = (databaseUrl: string) =>
                     `;
                 }),
 
-            getUserJoinMessage: (userId, guildId) =>
+            getUserSpeechNotice: (userId, guildId) =>
                 buildResult(async () => {
                     const uid = parseSnowflake("user id", userId);
                     const gid = parseSnowflake("guild id", guildId);
 
-                    const rows = await sql<UserMessageRow[]>`
+                    const rows = await sql<UserSpeechNoticeRow[]>`
                         SELECT
-                            jmt.prefix, jmt.content, jmt.suffix, jmt.language, jmt.voice_model,
-                            COALESCE(CASE WHEN guild_sn.id IS NOT NULL AND NOT guild_sn.inherit_global THEN guild_sn.muted END, global_sn.muted, false) AS muted
+                            COALESCE(
+                                CASE WHEN guild_sn.id IS NOT NULL AND NOT guild_sn.inherit_global THEN guild_sn.muted ELSE global_sn.muted END,
+                                false
+                            ) AS muted,
+                            CASE WHEN guild_sn.id IS NOT NULL AND NOT guild_sn.inherit_global THEN guild_sn.join_message ELSE global_sn.join_message END AS join_message,
+                            CASE WHEN guild_sn.id IS NOT NULL AND NOT guild_sn.inherit_global THEN guild_sn.leave_message ELSE global_sn.leave_message END AS leave_message
                         FROM user_configs uc
                         LEFT JOIN user_guild_notices ugn ON ugn.user_config_id = uc.id AND ugn.guild_id = ${gid}
                         LEFT JOIN speech_notices guild_sn ON guild_sn.id = ugn.speech_notice_id
                         LEFT JOIN speech_notices global_sn ON global_sn.id = uc.global_speech_notice_id
-                        LEFT JOIN message_templates jmt ON jmt.id = COALESCE(
-                            CASE WHEN guild_sn.id IS NOT NULL AND NOT guild_sn.inherit_global THEN guild_sn.join_message_id END,
-                            global_sn.join_message_id
-                        )
                         WHERE uc.id = ${uid}
                     `;
 
-                    return toUserMessageOption(rows[0]);
-                }),
-
-            getUserLeaveMessage: (userId, guildId) =>
-                buildResult(async () => {
-                    const uid = parseSnowflake("user id", userId);
-                    const gid = parseSnowflake("guild id", guildId);
-
-                    const rows = await sql<UserMessageRow[]>`
-                        SELECT
-                            lmt.prefix, lmt.content, lmt.suffix, lmt.language, lmt.voice_model,
-                            COALESCE(CASE WHEN guild_sn.id IS NOT NULL AND NOT guild_sn.inherit_global THEN guild_sn.muted END, global_sn.muted, false) AS muted
-                        FROM user_configs uc
-                        LEFT JOIN user_guild_notices ugn ON ugn.user_config_id = uc.id AND ugn.guild_id = ${gid}
-                        LEFT JOIN speech_notices guild_sn ON guild_sn.id = ugn.speech_notice_id
-                        LEFT JOIN speech_notices global_sn ON global_sn.id = uc.global_speech_notice_id
-                        LEFT JOIN message_templates lmt ON lmt.id = COALESCE(
-                            CASE WHEN guild_sn.id IS NOT NULL AND NOT guild_sn.inherit_global THEN guild_sn.leave_message_id END,
-                            global_sn.leave_message_id
-                        )
-                        WHERE uc.id = ${uid}
-                    `;
-
-                    return toUserMessageOption(rows[0]);
+                    return toSpeechNotice(rows[0]);
                 }),
 
             close: () => sql.close(),
