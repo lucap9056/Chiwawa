@@ -10,6 +10,8 @@ import {
 import type { GuildChannel } from "discord.js";
 import { Option } from "resultant.js/rustify";
 
+export type Connections = Map<string, Connection>;
+
 export class Connection {
     private static createAudioPlayer(connection: VoiceConnection, playbackCompletedHandler: () => void): AudioPlayer {
         const audioPlayer = createAudioPlayer();

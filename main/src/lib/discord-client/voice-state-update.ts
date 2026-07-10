@@ -1,10 +1,19 @@
-import type { GuildChannel, GuildMember, VoiceBasedChannel, VoiceState } from "discord.js";
-import type { Connections, Container } from "lib/discord-client/app-container";
-import { Connection } from "lib/discord-client/voice-connection";
+import type { Client, GuildChannel, GuildMember, VoiceBasedChannel, VoiceState } from "discord.js";
+import type { State } from "lib/appstate";
+import { Connection, type Connections } from "lib/discord-client/voice-connection";
 import { generateMessages } from "lib/discord-client/voice-message";
 import { match, Option } from "resultant.js/rustify";
 
-const isEventFromSelf = (ctx: Context, member: GuildMember): boolean => ctx.client.user.id === member.user.id;
+export interface VoiceStateUpdateContext {
+    client: Client<true>;
+    appState: State;
+    connections: Connections;
+    oldState: VoiceState;
+    newState: VoiceState;
+}
+
+const isEventFromSelf = (ctx: VoiceStateUpdateContext, member: GuildMember): boolean =>
+    ctx.client.user.id === member.user.id;
 
 const getHumanMemberCount = (targetChannel: GuildChannel): number => {
     const humanMembers = targetChannel.members.filter((member) => !member.user.bot);
@@ -14,8 +23,8 @@ const getHumanMemberCount = (targetChannel: GuildChannel): number => {
 const hasHumanMembers = (targetChannel: GuildChannel) => getHumanMemberCount(targetChannel) > 0;
 
 const isChannelMoved = (
-    ctx: Context,
-): ctx is Context & {
+    ctx: VoiceStateUpdateContext,
+): ctx is VoiceStateUpdateContext & {
     oldState: { channel: VoiceBasedChannel };
     newState: { channel: VoiceBasedChannel };
 } => {
@@ -39,26 +48,27 @@ const removeVoiceConnection = (connections: Connections, guildId: string): void 
     });
 };
 
-const isSelfInVoiceChannel = (ctx: Context, channel: GuildChannel) => channel.members.has(ctx.client.user.id);
+const isSelfInVoiceChannel = (ctx: VoiceStateUpdateContext, channel: GuildChannel) =>
+    channel.members.has(ctx.client.user.id);
 
 // Generates the message for member/join, then speaks it on an already-joined
 // connection — a no-op if there's no TTS client or the member is muted.
 const announce = async (
-    ctx: Context,
+    ctx: VoiceStateUpdateContext,
     connection: Connection,
     member: GuildMember,
     join: boolean = false,
 ): Promise<void> => {
-    const message = await generateMessages(ctx.state, member, join);
+    const message = await generateMessages(ctx.appState, member, join);
     await message.map(async (msg) => {
-        await ctx.state.tts.map(async (tts) => {
+        await ctx.appState.tts.map(async (tts) => {
             const speech = await tts.fetchSpeech(msg);
             connection.queue(speech);
         });
     });
 };
 
-const joinVoiceChannel = async (ctx: Context, channel: VoiceBasedChannel, member: GuildMember) => {
+const joinVoiceChannel = async (ctx: VoiceStateUpdateContext, channel: VoiceBasedChannel, member: GuildMember) => {
     match(getVoiceConnection(ctx.connections, channel.guildId), {
         async Some(voiceConnection) {
             if (voiceConnection.channel.id !== channel.id || getHumanMemberCount(channel) <= 1) return;
@@ -68,10 +78,10 @@ const joinVoiceChannel = async (ctx: Context, channel: VoiceBasedChannel, member
 
         async None() {
             if (getHumanMemberCount(channel) > 1) {
-                const message = await generateMessages(ctx.state, member, true);
+                const message = await generateMessages(ctx.appState, member, true);
 
                 await message.map(async (value) => {
-                    await ctx.state.tts.map(async (tts) => {
+                    await ctx.appState.tts.map(async (tts) => {
                         const speech = await tts.fetchSpeech(value);
                         const connection = appendVoiceConnection(ctx.connections, channel);
                         connection.queue(speech);
@@ -85,7 +95,7 @@ const joinVoiceChannel = async (ctx: Context, channel: VoiceBasedChannel, member
 };
 
 const moveVoiceChannel = async (
-    ctx: Context,
+    ctx: VoiceStateUpdateContext,
     joinChannel: VoiceBasedChannel,
     leaveChannel: VoiceBasedChannel,
     member: GuildMember,
@@ -103,10 +113,10 @@ const moveVoiceChannel = async (
                     removeVoiceConnection(ctx.connections, guildId);
 
                     if (getHumanMemberCount(joinChannel) > 1) {
-                        const message = await generateMessages(ctx.state, member, true);
+                        const message = await generateMessages(ctx.appState, member, true);
 
                         await message.map(async (value) => {
-                            await ctx.state.tts.map(async (tts) => {
+                            await ctx.appState.tts.map(async (tts) => {
                                 const speech = await tts.fetchSpeech(value);
                                 const connection = appendVoiceConnection(ctx.connections, joinChannel);
                                 connection.queue(speech);
@@ -129,10 +139,10 @@ const moveVoiceChannel = async (
             const joinChannel = ctx.newState.channel;
             if (joinChannel) {
                 if (getHumanMemberCount(joinChannel) > 1) {
-                    const message = await generateMessages(ctx.state, member, true);
+                    const message = await generateMessages(ctx.appState, member, true);
 
                     await message.map(async (value) => {
-                        await ctx.state.tts.map(async (tts) => {
+                        await ctx.appState.tts.map(async (tts) => {
                             const speech = await tts.fetchSpeech(value);
                             const connection = appendVoiceConnection(ctx.connections, joinChannel);
                             connection.queue(speech);
@@ -146,7 +156,7 @@ const moveVoiceChannel = async (
     });
 };
 
-const leaveVoiceChannel = async (ctx: Context, channel: VoiceBasedChannel, member: GuildMember) => {
+const leaveVoiceChannel = async (ctx: VoiceStateUpdateContext, channel: VoiceBasedChannel, member: GuildMember) => {
     const guildId = member.guild.id;
 
     match(getVoiceConnection(ctx.connections, guildId), {
@@ -162,10 +172,10 @@ const leaveVoiceChannel = async (ctx: Context, channel: VoiceBasedChannel, membe
 
         async None() {
             if (hasHumanMembers(channel)) {
-                const message = await generateMessages(ctx.state, member);
+                const message = await generateMessages(ctx.appState, member);
 
                 await message.map(async (value) => {
-                    await ctx.state.tts.map(async (tts) => {
+                    await ctx.appState.tts.map(async (tts) => {
                         const speech = await tts.fetchSpeech(value);
                         const connection = appendVoiceConnection(ctx.connections, channel);
                         connection.queue(speech);
@@ -176,14 +186,14 @@ const leaveVoiceChannel = async (ctx: Context, channel: VoiceBasedChannel, membe
     });
 };
 
-const getMember = ({ oldState, newState }: Context): Option<GuildMember> =>
+const getMember = ({ oldState, newState }: VoiceStateUpdateContext): Option<GuildMember> =>
     new Option(newState.member || oldState.member);
 
-const getGuild = ({ newState }: Context) => newState.guild;
+const getGuild = ({ newState }: VoiceStateUpdateContext) => newState.guild;
 
 const isEventFromBot = (member: GuildMember) => member.user.bot;
 
-const handler = (ctx: Context) => {
+const handler = (ctx: VoiceStateUpdateContext) => {
     const guild = getGuild(ctx);
 
     match(getMember(ctx), {
@@ -229,14 +239,13 @@ const handler = (ctx: Context) => {
     });
 };
 
-interface Context extends Container {
-    oldState: VoiceState;
-    newState: VoiceState;
-}
-
-const createContext = (container: Container, oldState: VoiceState, newState: VoiceState): Context => {
-    return { ...container, oldState, newState };
-};
+const createContext = (
+    client: Client<true>,
+    appState: State,
+    connections: Connections,
+    oldState: VoiceState,
+    newState: VoiceState,
+): VoiceStateUpdateContext => ({ client, appState, connections, oldState, newState });
 
 export default {
     createContext,

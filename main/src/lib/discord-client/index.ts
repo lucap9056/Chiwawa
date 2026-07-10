@@ -1,8 +1,7 @@
 import { Client, GatewayIntentBits, Partials, type VoiceState } from "discord.js";
 import type { State } from "lib/appstate";
-import appContainer, { type Container } from "lib/discord-client/app-container";
 import voiceStateUpdate from "lib/discord-client/voice-state-update";
-import type { Connection } from "./voice-connection";
+import type { Connection, Connections } from "./voice-connection";
 
 const createClient = (token: string): Promise<Client<true>> => {
     const client = new Client({
@@ -29,9 +28,9 @@ const createClient = (token: string): Promise<Client<true>> => {
     });
 };
 
-const listenVoiceStateUpdate = (container: Container) => {
-    container.client.on("voiceStateUpdate", (oldState: VoiceState, newState: VoiceState) => {
-        const ctx = voiceStateUpdate.createContext(container, oldState, newState);
+const listenVoiceStateUpdate = (client: Client<true>, state: State, connections: Connections) => {
+    client.on("voiceStateUpdate", (oldState: VoiceState, newState: VoiceState) => {
+        const ctx = voiceStateUpdate.createContext(client, state, connections, oldState, newState);
         voiceStateUpdate.handler(ctx);
     });
 };
@@ -43,13 +42,12 @@ export interface DiscordClient {
 const newClient = async (token: string, state: State) => {
     const client = await createClient(token);
 
-    const connections = new Map<string, Connection>();
+    const connections: Connections = new Map<string, Connection>();
 
     client.on("error", (err) => console.error(`discord-client: ${err.message}`));
 
     if (state.tts.isSome()) {
-        const container = appContainer.createContainer(client, state, connections);
-        listenVoiceStateUpdate(container);
+        listenVoiceStateUpdate(client, state, connections);
     }
 
     return {
