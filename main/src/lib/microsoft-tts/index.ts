@@ -139,7 +139,7 @@ const initializeTTS = async (config: AppConfig): Promise<Option<MicrosoftTTS>> =
             });
         },
         Err(err) {
-            console.error(`Error fetching speech audio: ${err.message}`);
+            console.error(`microsoft-tts: failed to load voice models: ${err.message}`);
             return None();
         },
     });
