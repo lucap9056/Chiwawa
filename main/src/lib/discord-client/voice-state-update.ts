@@ -41,26 +41,41 @@ const removeVoiceConnection = (connections: Connections, guildId: string): void 
 
 const isSelfInVoiceChannel = (ctx: Context, channel: GuildChannel) => channel.members.has(ctx.client.user.id);
 
+// Generates the message for member/join, then speaks it on an already-joined
+// connection — a no-op if there's no TTS client or the member is muted.
+const announce = async (
+    ctx: Context,
+    connection: Connection,
+    member: GuildMember,
+    join: boolean = false,
+): Promise<void> => {
+    const message = await generateMessages(ctx.state, member, join);
+    await message.map(async (msg) => {
+        await ctx.state.tts.map(async (tts) => {
+            const speech = await tts.fetchSpeech(msg);
+            connection.queue(speech);
+        });
+    });
+};
+
 const joinVoiceChannel = async (ctx: Context, channel: VoiceBasedChannel, member: GuildMember) => {
     match(getVoiceConnection(ctx.connections, channel.guildId), {
         async Some(voiceConnection) {
             if (voiceConnection.channel.id !== channel.id || getHumanMemberCount(channel) <= 1) return;
 
-            const message = await generateMessages(ctx, member, true);
-            message.map(async (msg) => {
-                const speech = await ctx.tts.fetchSpeech(msg);
-                voiceConnection.queue(speech);
-            });
+            await announce(ctx, voiceConnection, member, true);
         },
 
         async None() {
             if (getHumanMemberCount(channel) > 1) {
-                const message = await generateMessages(ctx, member, true);
+                const message = await generateMessages(ctx.state, member, true);
 
-                message.map(async (value) => {
-                    const speech = await ctx.tts.fetchSpeech(value);
-                    const connection = appendVoiceConnection(ctx.connections, channel);
-                    connection.queue(speech);
+                await message.map(async (value) => {
+                    await ctx.state.tts.map(async (tts) => {
+                        const speech = await tts.fetchSpeech(value);
+                        const connection = appendVoiceConnection(ctx.connections, channel);
+                        connection.queue(speech);
+                    });
                 });
             } else {
                 appendVoiceConnection(ctx.connections, channel);
@@ -80,12 +95,7 @@ const moveVoiceChannel = async (
     match(getVoiceConnection(ctx.connections, guildId), {
         async Some(connection) {
             if (isSelfInVoiceChannel(ctx, joinChannel) && getHumanMemberCount(joinChannel) > 1) {
-                const message = await generateMessages(ctx, member, true);
-
-                message.map(async (value) => {
-                    const speech = await ctx.tts.fetchSpeech(value);
-                    connection.queue(speech);
-                });
+                await announce(ctx, connection, member, true);
             }
 
             if (isSelfInVoiceChannel(ctx, leaveChannel)) {
@@ -93,12 +103,14 @@ const moveVoiceChannel = async (
                     removeVoiceConnection(ctx.connections, guildId);
 
                     if (getHumanMemberCount(joinChannel) > 1) {
-                        const message = await generateMessages(ctx, member, true);
+                        const message = await generateMessages(ctx.state, member, true);
 
-                        message.map(async (value) => {
-                            const speech = await ctx.tts.fetchSpeech(value);
-                            const connection = appendVoiceConnection(ctx.connections, joinChannel);
-                            connection.queue(speech);
+                        await message.map(async (value) => {
+                            await ctx.state.tts.map(async (tts) => {
+                                const speech = await tts.fetchSpeech(value);
+                                const connection = appendVoiceConnection(ctx.connections, joinChannel);
+                                connection.queue(speech);
+                            });
                         });
 
                         return;
@@ -106,13 +118,7 @@ const moveVoiceChannel = async (
                         appendVoiceConnection(ctx.connections, joinChannel);
                     }
                 } else {
-                    const message = await generateMessages(ctx, member);
-
-                    message.map(async (value) => {
-                        const speech = await ctx.tts.fetchSpeech(value);
-                        connection.queue(speech);
-                    });
-
+                    await announce(ctx, connection, member);
                     return;
                 }
 
@@ -123,12 +129,14 @@ const moveVoiceChannel = async (
             const joinChannel = ctx.newState.channel;
             if (joinChannel) {
                 if (getHumanMemberCount(joinChannel) > 1) {
-                    const message = await generateMessages(ctx, member, true);
+                    const message = await generateMessages(ctx.state, member, true);
 
-                    message.map(async (value) => {
-                        const speech = await ctx.tts.fetchSpeech(value);
-                        const connection = appendVoiceConnection(ctx.connections, joinChannel);
-                        connection.queue(speech);
+                    await message.map(async (value) => {
+                        await ctx.state.tts.map(async (tts) => {
+                            const speech = await tts.fetchSpeech(value);
+                            const connection = appendVoiceConnection(ctx.connections, joinChannel);
+                            connection.queue(speech);
+                        });
                     });
                 } else {
                     appendVoiceConnection(ctx.connections, joinChannel);
@@ -146,11 +154,7 @@ const leaveVoiceChannel = async (ctx: Context, channel: VoiceBasedChannel, membe
             if (connection.channel !== channel) return;
 
             if (hasHumanMembers(channel)) {
-                const message = await generateMessages(ctx, member);
-                message.map(async (value) => {
-                    const speech = await ctx.tts.fetchSpeech(value);
-                    connection.queue(speech);
-                });
+                await announce(ctx, connection, member);
             } else {
                 removeVoiceConnection(ctx.connections, guildId);
             }
@@ -158,11 +162,14 @@ const leaveVoiceChannel = async (ctx: Context, channel: VoiceBasedChannel, membe
 
         async None() {
             if (hasHumanMembers(channel)) {
-                const message = await generateMessages(ctx, member);
-                message.map(async (value) => {
-                    const speech = await ctx.tts.fetchSpeech(value);
-                    const connection = appendVoiceConnection(ctx.connections, channel);
-                    connection.queue(speech);
+                const message = await generateMessages(ctx.state, member);
+
+                await message.map(async (value) => {
+                    await ctx.state.tts.map(async (tts) => {
+                        const speech = await tts.fetchSpeech(value);
+                        const connection = appendVoiceConnection(ctx.connections, channel);
+                        connection.queue(speech);
+                    });
                 });
             }
         },

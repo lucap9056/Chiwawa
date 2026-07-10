@@ -1,5 +1,5 @@
+import type { AppConfig } from "models";
 import { buildResult, match, None, type Option, Some } from "resultant.js/rustify";
-import type { AppConfig } from "structs/app-config";
 
 interface Context {
     region: string;
@@ -7,9 +7,12 @@ interface Context {
     languages: Languages;
 }
 
+const getRegion = (config: AppConfig) => config.ttsRegion || "";
+const getApiKey = (config: AppConfig) => config.ttsApiKey || "";
+
 const createContext = (config: AppConfig, languages: Languages): Context => {
-    const region = config.ttsRegion;
-    const apiKey = config.ttsApiKey;
+    const region = getRegion(config);
+    const apiKey = getApiKey(config);
     return { region, apiKey, languages };
 };
 
@@ -33,10 +36,6 @@ const DEFAULT_VOICE_MODEL: VoiceModel = {
 
 const emptyLanguages: Languages = { default: { default: DEFAULT_VOICE_MODEL } };
 
-const getRegion = (config: AppConfig) => config.ttsRegion;
-
-const getApiKey = (config: AppConfig) => config.ttsApiKey;
-
 const fetchAvailableVoiceModels = async (region: string, apiKey: string): Promise<VoiceModel[]> => {
     const response = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`, {
         headers: {
@@ -59,9 +58,9 @@ type Languages = {
 const getLanguages = async (config: AppConfig) =>
     buildResult(async () => {
         const languages: Languages = { ...emptyLanguages };
-
         const region = getRegion(config);
         const apiKey = getApiKey(config);
+        const defaultVoiceModel = config.defaultVoiceModel;
 
         if (!region || region === "") {
             throw new Error("TTS region is not configured or is empty.");
@@ -79,7 +78,7 @@ const getLanguages = async (config: AppConfig) =>
 
             languages[Locale][DisplayName] = voiceModel;
 
-            if (ShortName === config.defaultVoiceModel) {
+            if (ShortName === defaultVoiceModel) {
                 languages.default = { default: voiceModel };
             }
         }

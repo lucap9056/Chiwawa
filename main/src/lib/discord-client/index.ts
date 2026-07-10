@@ -1,12 +1,7 @@
 import { Client, GatewayIntentBits, Partials, type VoiceState } from "discord.js";
-import type { RuntimeConfig } from "lib/config";
-import type { Database } from "lib/database";
+import type { State } from "lib/appstate";
 import appContainer, { type Container } from "lib/discord-client/app-container";
-import appInfoUpdate from "lib/discord-client/app-info-update";
 import voiceStateUpdate from "lib/discord-client/voice-state-update";
-import type { MicrosoftTTS } from "lib/microsoft-tts";
-import type { Option } from "resultant.js/rustify";
-
 import type { Connection } from "./voice-connection";
 
 const createClient = (token: string): Promise<Client<true>> => {
@@ -21,7 +16,7 @@ const createClient = (token: string): Promise<Client<true>> => {
         }, 5000);
 
         client.once("clientReady", (readyClient) => {
-            console.log(new Date().toLocaleString(), "Bot Ready");
+            console.log(`discord-client: bot ready at ${new Date().toLocaleString()}`);
             clearTimeout(loginTimeout);
             resolve(readyClient);
         });
@@ -32,14 +27,6 @@ const createClient = (token: string): Promise<Client<true>> => {
             reject(new Error(`Failed to log in to Discord: ${errorMessage}`));
         });
     });
-};
-
-const listenJoinedGuildsUpdate = async (client: Client, database: Database): Promise<void> => {
-    await client.guilds.fetch();
-    const update = () => appInfoUpdate.update(client, database);
-    client.on("guildCreate", update);
-    client.on("guildDelete", update);
-    update();
 };
 
 const listenVoiceStateUpdate = (container: Container) => {
@@ -53,21 +40,17 @@ export interface DiscordClient {
     destroy: () => Promise<void>;
 }
 
-const newClient = async (config: RuntimeConfig, tts: Option<MicrosoftTTS>, database: Option<Database>) => {
-    const client = await createClient(config.discordToken);
+const newClient = async (token: string, state: State) => {
+    const client = await createClient(token);
 
     const connections = new Map<string, Connection>();
 
-    client.on("error", (err) => console.log(err));
+    client.on("error", (err) => console.error(`discord-client: ${err.message}`));
 
-    database.map((db) => {
-        listenJoinedGuildsUpdate(client, db);
-    });
-
-    tts.map((t) => {
-        const container = appContainer.createContainer(config.appConfig, client, t, database, connections);
+    if (state.tts.isSome()) {
+        const container = appContainer.createContainer(client, state, connections);
         listenVoiceStateUpdate(container);
-    });
+    }
 
     return {
         destroy: async (): Promise<void> => {
