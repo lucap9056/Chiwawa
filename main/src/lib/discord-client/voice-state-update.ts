@@ -1,6 +1,6 @@
 import type { Client, GuildChannel, GuildMember, VoiceBasedChannel, VoiceState } from "discord.js";
 import type { State } from "lib/appstate";
-import { Connection, type Connections } from "lib/discord-client/voice-connection";
+import { type Connection, type Connections, newConnection } from "lib/discord-client/voice-connection";
 import { generateMessages } from "lib/discord-client/voice-message";
 import { match, None, Option, Some } from "resultant.js/rustify";
 
@@ -33,7 +33,7 @@ const isChannelMoved = (
 };
 
 const appendVoiceConnection = (connections: Connections, channel: GuildChannel): Connection => {
-    const connection = new Connection(channel);
+    const connection = newConnection(channel);
     connections.set(channel.guildId, connection);
     return connection;
 };
