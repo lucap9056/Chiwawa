@@ -57,7 +57,7 @@ const cacheSpeech = async (
     ctx: VoiceStateUpdateContext,
     member: GuildMember,
     join: boolean,
-    speech: Option<Buffer>,
+    speech: Option<Uint8Array>,
 ): Promise<void> => {
     await ctx.appState.cache.map(async (cache) => {
         const result = await cache.setSpeech(member.user.id, member.guild.id, join, speech);
@@ -69,21 +69,21 @@ const synthesizeAndCache = async (
     ctx: VoiceStateUpdateContext,
     member: GuildMember,
     join: boolean,
-): Promise<Option<Buffer>> => {
+): Promise<Option<Uint8Array>> => {
     const { appState } = ctx;
     const message = await generateMessages(appState, member, join);
 
     return match(message, {
         async None() {
-            await cacheSpeech(ctx, member, join, None<Buffer>());
-            return None<Buffer>();
+            await cacheSpeech(ctx, member, join, None<Uint8Array>());
+            return None<Uint8Array>();
         },
         async Some(msg) {
             return match(appState.tts, {
                 // Not cached: this is a transient condition (updateTTS can flip it back to
                 // Some later), not the member's own choice like being muted.
                 async None() {
-                    return None<Buffer>();
+                    return None<Uint8Array>();
                 },
                 async Some(tts) {
                     const speech = await tts.fetchSpeech(msg);
@@ -95,7 +95,11 @@ const synthesizeAndCache = async (
     });
 };
 
-const resolveSpeech = async (ctx: VoiceStateUpdateContext, member: GuildMember, join: boolean): Promise<Option<Buffer>> =>
+const resolveSpeech = async (
+    ctx: VoiceStateUpdateContext,
+    member: GuildMember,
+    join: boolean,
+): Promise<Option<Uint8Array>> =>
     match(ctx.appState.cache, {
         async None() {
             return synthesizeAndCache(ctx, member, join);

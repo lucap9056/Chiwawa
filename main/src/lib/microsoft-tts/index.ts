@@ -96,7 +96,7 @@ const fetchSpeech = async (
     { region, apiKey }: Context,
     { Locale, ShortName }: VoiceModel,
     content: string,
-): Promise<Buffer> => {
+): Promise<Uint8Array> => {
     const body = `
 <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${Locale}">
     <voice name="${ShortName}">${content}</voice>
@@ -115,12 +115,11 @@ const fetchSpeech = async (
         },
     });
 
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    return response.bytes();
 };
 
 export interface MicrosoftTTS {
-    fetchSpeech: (message: TTSMessage) => Promise<Buffer>;
+    fetchSpeech: (message: TTSMessage) => Promise<Uint8Array>;
 }
 
 const initializeTTS = async (config: AppConfig): Promise<Option<MicrosoftTTS>> => {
@@ -131,7 +130,7 @@ const initializeTTS = async (config: AppConfig): Promise<Option<MicrosoftTTS>> =
             const ctx = createContext(config, value);
 
             return Some<MicrosoftTTS>({
-                fetchSpeech: async (message: TTSMessage): Promise<Buffer> => {
+                fetchSpeech: async (message: TTSMessage): Promise<Uint8Array> => {
                     const languageMap = getTTSMessageLanguage(ctx, message.language);
                     const voiceModel = getTTSMessageVoiceModel(languageMap, message.voiceModel);
                     return fetchSpeech(ctx, voiceModel, message.content);

@@ -12,13 +12,14 @@ import { Option } from "resultant.js/rustify";
 
 export interface Connection {
     readonly channel: GuildChannel;
-    queue: (fileBuffer: Buffer) => void;
+    queue: (fileBuffer: Uint8Array) => void;
     disconnect: () => void;
     destory: () => void;
 }
 
 export type Connections = Map<string, Connection>;
 
+const toBuffer = (data: Uint8Array): Buffer => Buffer.from(data.buffer, data.byteOffset, data.byteLength);
 
 const createVoiceAudioPlayer = (connection: VoiceConnection, playbackCompletedHandler: () => void): AudioPlayer => {
     const audioPlayer = createAudioPlayer();
@@ -37,7 +38,7 @@ const createVoiceAudioPlayer = (connection: VoiceConnection, playbackCompletedHa
 };
 
 export const newConnection = (channel: GuildChannel): Connection => {
-    const queues: Buffer[] = [];
+    const queues: Uint8Array[] = [];
 
     const voiceConnection = joinVoiceChannel({
         channelId: channel.id,
@@ -52,6 +53,7 @@ export const newConnection = (channel: GuildChannel): Connection => {
         const fileBuffer = new Option(queues.shift());
 
         fileBuffer
+            .map(toBuffer)
             .map(Readable.from)
             .map(createAudioResource)
             .map((audioResource) => {
@@ -63,7 +65,7 @@ export const newConnection = (channel: GuildChannel): Connection => {
 
     return {
         channel,
-        queue: (fileBuffer: Buffer): void => {
+        queue: (fileBuffer: Uint8Array): void => {
             queues.push(fileBuffer);
 
             if (audioPlayer.state.status === AudioPlayerStatus.Idle) {

@@ -20,7 +20,7 @@ export interface CacheEvents {
 }
 
 // hit: false means nothing cached yet. speech: None means cached as "muted".
-export type SpeechCacheLookup = { hit: false } | { hit: true; speech: Option<Buffer> };
+export type SpeechCacheLookup = { hit: false } | { hit: true; speech: Option<Uint8Array> };
 
 export interface Cache extends EventEmitter<CacheEvents> {
     syncGuildIds: (guildIds: string[]) => Promise<Result<void, Error>>;
@@ -31,7 +31,12 @@ export interface Cache extends EventEmitter<CacheEvents> {
     // active invalidation: whoever writes a user's settings is responsible for
     // deleting the matching keys (see proto/v1/redis.md).
     getSpeech: (userId: string, guildId: string, join: boolean) => Promise<Result<SpeechCacheLookup, Error>>;
-    setSpeech: (userId: string, guildId: string, join: boolean, speech: Option<Buffer>) => Promise<Result<void, Error>>;
+    setSpeech: (
+        userId: string,
+        guildId: string,
+        join: boolean,
+        speech: Option<Uint8Array>,
+    ) => Promise<Result<void, Error>>;
     close: () => Promise<void>;
 }
 
@@ -101,12 +106,12 @@ const newCache = (redisUrl: string) =>
                 buildResult(async (): Promise<SpeechCacheLookup> => {
                     const raw = await rdb.getBuffer(speechCacheKey(userId, guildId, join));
                     if (raw === null) return { hit: false };
-                    return { hit: true, speech: raw.length === 0 ? None<Buffer>() : Some(Buffer.from(raw)) };
+                    return { hit: true, speech: raw.length === 0 ? None<Uint8Array>() : Some(raw) };
                 }),
 
-            setSpeech: (userId: string, guildId: string, join: boolean, speech: Option<Buffer>) =>
+            setSpeech: (userId: string, guildId: string, join: boolean, speech: Option<Uint8Array>) =>
                 buildResult(async () => {
-                    const value = match(speech, { Some: (buf) => buf, None: () => Buffer.alloc(0) });
+                    const value = match(speech, { Some: (buf) => buf, None: () => new Uint8Array(0) });
                     await rdb.set(speechCacheKey(userId, guildId, join), value);
                 }),
 
