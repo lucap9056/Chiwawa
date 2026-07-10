@@ -1,5 +1,7 @@
 import { Client, GatewayIntentBits, Partials, type VoiceState } from "discord.js";
 import type { State } from "lib/appstate";
+import type { Cache } from "lib/cache";
+import guildSync from "lib/discord-client/guild-sync";
 import voiceStateUpdate from "lib/discord-client/voice-state-update";
 import type { Connection, Connections } from "./voice-connection";
 
@@ -28,6 +30,11 @@ const createClient = (token: string): Promise<Client<true>> => {
     });
 };
 
+const listenGuildSync = (client: Client<true>, cache: Cache) => {
+    client.on("guildCreate", guildSync.onGuildJoin(cache));
+    client.on("guildDelete", guildSync.onGuildLeave(cache));
+};
+
 const listenVoiceStateUpdate = (client: Client<true>, state: State, connections: Connections) => {
     client.on("voiceStateUpdate", (oldState: VoiceState, newState: VoiceState) => {
         const ctx = voiceStateUpdate.createContext(client, state, connections, oldState, newState);
@@ -49,6 +56,11 @@ const newClient = async (token: string, state: State) => {
     if (state.tts.isSome()) {
         listenVoiceStateUpdate(client, state, connections);
     }
+
+    state.cache.map(async (cache) => {
+        listenGuildSync(client, cache);
+        await guildSync.syncGuilds(client, cache);
+    });
 
     return {
         destroy: async (): Promise<void> => {
