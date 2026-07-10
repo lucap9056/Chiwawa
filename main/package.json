@@ -16,10 +16,7 @@
     "@bufbuild/protobuf": "^2.12.1",
     "@discordjs/voice": "^0.19.0",
     "@snazzah/davey": "^0.1.10",
-    "connect-mongo": "^5.1.0",
     "discord.js": "^14.25.1",
-    "dotenv": "^16.5.0",
-    "mongodb": "^6.16.0",
     "opusscript": "^0.1.1",
     "resultant.js": "2.0.0",
     "sodium-native": "^5.1.0"

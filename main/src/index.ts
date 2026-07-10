@@ -1,4 +1,3 @@
-import dotenv from "dotenv";
 import { newState } from "lib/appstate";
 import cache, { type Cache } from "lib/cache";
 import Config from "lib/config";
@@ -7,8 +6,6 @@ import discord, { type DiscordClient } from "lib/discord-client";
 import microsoftTTS from "lib/microsoft-tts";
 import { buildResult, match, None, Ok, type Option, type Result, Some } from "resultant.js/rustify";
 import type { AppConfig } from "./models";
-
-dotenv.config();
 
 interface AppDependencies {
     database: Option<Database>;
