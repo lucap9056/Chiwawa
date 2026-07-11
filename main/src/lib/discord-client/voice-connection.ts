@@ -5,6 +5,7 @@ import {
     createAudioPlayer,
     createAudioResource,
     joinVoiceChannel,
+    StreamType,
     type VoiceConnection,
 } from "@discordjs/voice";
 import type { GuildChannel } from "discord.js";
@@ -55,7 +56,7 @@ export const newConnection = (channel: GuildChannel): Connection => {
         fileBuffer
             .map(toBuffer)
             .map(Readable.from)
-            .map(createAudioResource)
+            .map((audioResource) => createAudioResource(audioResource, { inputType: StreamType.OggOpus }))
             .map((audioResource) => {
                 audioPlayer.play(audioResource);
             });
