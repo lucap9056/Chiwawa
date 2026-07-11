@@ -5,7 +5,7 @@
   "main": "index.ts",
   "scripts": {
     "start": "bun src/index.ts",
-    "build": "bun build src/index.ts --compile --outfile main",
+    "build": "bun run scripts/build.ts",
     "proto:compile": "bunx protoc -I=../proto/v1 --ts_proto_out=./src/models --ts_proto_opt=exportCommonSymbols=true ../proto/v1/*.proto",
     "lint": "biome check .",
     "lint:fix": "biome check --write ."
