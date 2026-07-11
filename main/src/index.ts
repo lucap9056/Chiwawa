@@ -1,10 +1,10 @@
 import { newState } from "lib/appstate";
 import cache, { type Cache } from "lib/cache";
 import Config from "lib/config";
-import DB, { type Database, isNotFound, NotFoundError } from "lib/database";
+import DB, { type Database, isNotFound } from "lib/database";
 import discord, { type DiscordClient } from "lib/discord-client";
 import microsoftTTS from "lib/microsoft-tts";
-import { buildResult, match, None, Ok, type Option, type Result, Some } from "resultant.js/rustify";
+import { buildResult, match, None, type Option, type Result, Some } from "resultant.js/rustify";
 import type { AppConfig } from "./models";
 
 interface AppDependencies {
@@ -50,27 +50,22 @@ const initializeCache = async (redisUrl: string): Promise<Option<Cache>> => {
     );
 };
 
-const loadAppConfig = (database: Option<Database>, rawConfig: AppConfig): Promise<AppConfig> => {
-    return database
-        .map((db) =>
-            db
-                .getAppConfig()
-                .then((getConfig) =>
-                    getConfig.andThen((config): Result<AppConfig, Error> => config.okOr(new NotFoundError())),
-                ),
-        )
-        .unwrapOrElse(async () => Ok(rawConfig))
-        .then((getConfig) => {
-            return match(getConfig, {
-                Ok: (config) => config,
-                Err: (err) => {
-                    if (!isNotFound(err)) {
-                        console.error(`main: failed to load app config: ${err.message}`);
-                    }
-                    return rawConfig;
-                },
-            });
-        });
+const loadAppConfig = async (database: Option<Database>, rawConfig: AppConfig): Promise<AppConfig> => {
+    if (database.isNone()) {
+        return rawConfig;
+    }
+
+    const db = database.unwrap();
+    const configResult = await db.getAppConfig();
+
+    return configResult
+        .unwrapOrElse((err) => {
+            if (!isNotFound(err)) {
+                console.error(`main: failed to load app config: ${err.message}`);
+            }
+            return None();
+        })
+        .unwrapOrElse(() => rawConfig);
 };
 
 const setupAppDependencies = (): Promise<Result<AppDependencies, Error>> =>
@@ -137,12 +132,15 @@ const setupStopEventListeners = (shutdown: () => Promise<void>) => {
 
 const startApp = async () => {
     const dependencies = await setupAppDependencies();
-    if (dependencies.isOk()) {
-        setupStopEventListeners(() => shutdownApp(dependencies.unwrap()));
-    } else {
-        console.error(`main: failed to start: ${dependencies.unwrapErr().message}`);
-        process.exit(1);
-    }
+    match(dependencies, {
+        Ok(app: AppDependencies) {
+            setupStopEventListeners(() => shutdownApp(app));
+        },
+        Err(err: Error) {
+            console.error(`main: failed to start: ${err.message}`);
+            process.exit(1);
+        },
+    });
 };
 
 startApp();
