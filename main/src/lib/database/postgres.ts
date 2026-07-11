@@ -74,7 +74,7 @@ const newDatabase = (databaseUrl: string) =>
                 buildResult(async () => {
                     await sql`
                         INSERT INTO app_runtime_info (id, default_join_suffix, default_leave_suffix, default_voice_model, tts_region, tts_api_key, admins)
-                        VALUES (${APP_CONFIG_ROW_ID}, ${config.defaultJoinSuffix}, ${config.defaultLeaveSuffix}, ${config.defaultVoiceModel}, ${config.ttsRegion}, ${config.ttsApiKey}, ${config.admins})
+                        VALUES (${APP_CONFIG_ROW_ID}, ${config.defaultJoinSuffix}, ${config.defaultLeaveSuffix}, ${config.defaultVoiceModel}, ${config.ttsRegion}, ${config.ttsApiKey}, ${sql.array(config.admins)})
                         ON CONFLICT (id) DO NOTHING
                     `;
                 }),
@@ -108,7 +108,7 @@ const newDatabase = (databaseUrl: string) =>
                             default_voice_model = ${config.defaultVoiceModel},
                             tts_region = ${config.ttsRegion ?? null},
                             tts_api_key = ${config.ttsApiKey ?? null},
-                            admins = ${config.admins}
+                            admins = ${sql.array(config.admins)}
                         WHERE id = ${APP_CONFIG_ROW_ID}
                     `;
                 }),
