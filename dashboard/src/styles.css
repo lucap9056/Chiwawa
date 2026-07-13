@@ -1,3 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Poetsen+One&family=Ubuntu:wght@400;700&display=swap');
+
+:root {
+  --font-poetsen-one: 'Poetsen One', sans-serif;
+  --font-ubuntu: 'Ubuntu', sans-serif;
+  --background: #150e0b;
+  --foreground: #ededed;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -10,5 +19,33 @@ body,
 
 body {
   margin: 0;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-ubuntu), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+
+button {
+  font-family: var(--font-poetsen-one);
+}
+
+button:hover {
+  scale: 1.02;
+}
+
+button:active {
+  scale: 0.97;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: dark;
+  }
+}
