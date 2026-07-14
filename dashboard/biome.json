@@ -17,6 +17,26 @@
             "!**/src/styles.css"
         ]
     },
+    "overrides": [
+        {
+            "includes": ["src/**/*.{ts,tsx}", "!src/services/**/*.{ts,tsx}"],
+            "linter": {
+                "rules": {
+                    "style": {
+                        "noRestrictedImports": {
+                            "level": "error",
+                            "options": {
+                                "paths": {
+                                    "#/services": "services/index.ts exposes server-only state. It must only be imported from server-side code, never from client-reachable components or routes.",
+                                    "#/services/index.ts": "services/index.ts exposes server-only state. It must only be imported from server-side code, never from client-reachable components or routes."
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ],
     "formatter": {
         "enabled": true,
         "indentStyle": "space",
