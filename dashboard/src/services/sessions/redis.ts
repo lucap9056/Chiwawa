@@ -2,7 +2,7 @@ import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server
 import type { RedisClient } from "bun";
 import { goify } from "resultant.js/goify";
 import { buildResult, type Result } from "resultant.js/rustify";
-import type { DiscordUser, OAuth2Token } from "#/services/discord-oauth2";
+import type { DiscordUser, OAuth2Token } from "#/services/oauth2-provider";
 
 enum CookieNames {
     SESSION_ID = "session_id",
