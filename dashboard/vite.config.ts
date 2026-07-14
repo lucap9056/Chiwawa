@@ -5,11 +5,16 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
 const config = defineConfig({
+    base: "./",
     resolve: { tsconfigPaths: true },
     plugins: [
         devtools(),
         nitro({
             preset: "bun",
+            serverDir: true,
+            rolldownConfig: {
+                external: ["bun", /^bun:/],
+            },
         }),
         tanstackStart(),
         viteReact(),
