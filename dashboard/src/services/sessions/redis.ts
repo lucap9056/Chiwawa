@@ -1,16 +1,8 @@
-import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server";
 import type { RedisClient } from "bun";
-import { goify } from "resultant.js/goify";
-import { buildResult, type Result } from "resultant.js/rustify";
+import { buildResult, None, type Option, type Result, Some } from "resultant.js/rustify";
 import type { DiscordUser, OAuth2Token } from "#/services/oauth2-provider";
 
-enum CookieNames {
-    SESSION_ID = "session_id",
-}
-
 const SESSION_KEY_PREFIX = "dashboard:v1:session:";
-
-const SESSION_MAX_AGE_SECONDS = 604800;
 
 export interface Session {
     sessionId: string;
@@ -20,9 +12,9 @@ export interface Session {
 }
 
 export interface Sessions {
-    create: (user: DiscordUser, oauthToken: OAuth2Token) => Promise<Result<void, Error>>;
-    get: () => Promise<Result<Session | null, Error>>;
-    del: () => Promise<Result<void, Error>>;
+    create: (user: DiscordUser, oauthToken: OAuth2Token) => Promise<Result<string, Error>>;
+    get: (sessionId: string) => Promise<Result<Option<Session>, Error>>;
+    del: (sessionId: string) => Promise<Result<void, Error>>;
     update: (session: Session) => Promise<Result<void, Error>>;
 }
 
@@ -38,67 +30,35 @@ const writeSession = (rdb: RedisClient, session: Session): Promise<"OK"> =>
         Math.floor(session.expireAt.getTime() / 1000),
     );
 
-const newSessions = (rdb: RedisClient) => ({
+const newSessions = (rdb: RedisClient): Sessions => ({
     create: (user: DiscordUser, oauthToken: OAuth2Token) =>
         buildResult(async () => {
+            const sessionId = crypto.randomUUID();
             const session: Session = {
-                sessionId: crypto.randomUUID(),
+                sessionId,
                 userId: user.id,
                 userToken: oauthToken,
-                expireAt: new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000),
+                expireAt: new Date(Date.now() + oauthToken.expires_in * 1000),
             };
 
             await writeSession(rdb, session);
-
-            const [, cookieError] = goify(() =>
-                setCookie(CookieNames.SESSION_ID, session.sessionId, {
-                    maxAge: SESSION_MAX_AGE_SECONDS,
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === "production",
-                    sameSite: "lax",
-                }),
-            );
-            if (cookieError) {
-                throw cookieError;
-            }
+            return sessionId;
         }),
 
-    get: () =>
-        buildResult(async (): Promise<Session | null> => {
-            const [sessionId, cookieError] = goify(() => getCookie(CookieNames.SESSION_ID));
-            if (cookieError) {
-                throw cookieError;
-            }
-            if (!sessionId) {
-                return null;
-            }
-
+    get: (sessionId: string) =>
+        buildResult(async (): Promise<Option<Session>> => {
             const raw = await rdb.get(sessionKey(sessionId));
             if (!raw) {
-                return null;
+                return None();
             }
 
             const session: Session = JSON.parse(raw);
             session.expireAt = new Date(session.expireAt);
-            return session;
+            return Some(session);
         }),
-
-    del: () =>
+    del: (sessionId: string): Promise<Result<void, Error>> =>
         buildResult(async () => {
-            const [sessionId, cookieError] = goify(() => getCookie(CookieNames.SESSION_ID));
-            if (cookieError) {
-                throw cookieError;
-            }
-            if (!sessionId) {
-                return;
-            }
-
             await rdb.del(sessionKey(sessionId));
-
-            const [, deleteCookieError] = goify(() => deleteCookie(CookieNames.SESSION_ID));
-            if (deleteCookieError) {
-                throw deleteCookieError;
-            }
         }),
 
     update: (session: Session) =>
