@@ -4,9 +4,11 @@ import type { Result } from "resultant.js/rustify";
 import cache, { type Cache } from "#/services/cache";
 import database, { type Database } from "#/services/database";
 import { fetchIssueToken, initializeTTS, type TTSMessage } from "#/services/microsoft-tts";
+import { newOAuth2Provider, type OAuth2Provider } from "#/services/oauth2-provider";
 import sessions, { type Sessions } from "#/services/sessions";
 
 export interface State {
+    oauth2Provider: OAuth2Provider;
     db: Database;
     cache: Cache;
     sessions: Sessions;
@@ -20,7 +22,11 @@ const TTS_APIKEY = process.env.TTS_APIKEY || "";
 const REDIS_URL = process.env.REDIS_URL || "";
 const DATABASE_URL = process.env.DATABASE_URL || "";
 
-const initializeState = (rdb: RedisClient, sql: SQL): State => {
+const clientId = process.env.CLIENT_ID || "";
+const clientSecret = process.env.CLIENT_SECRET || "";
+const redirectUri = process.env.REDIRECT_URI || "";
+
+const initializeState = (rdb: RedisClient, sql: SQL, oauth2Provider: OAuth2Provider): State => {
     const db = database.newDatabase(sql);
     const ca = cache.newCache(rdb);
     const se = sessions.newSessions(rdb);
@@ -28,6 +34,7 @@ const initializeState = (rdb: RedisClient, sql: SQL): State => {
     let tts: TTSMessage = initializeTTS(TTS_REGION, TTS_APIKEY);
 
     return {
+        oauth2Provider,
         db: db,
         cache: ca,
         sessions: se,
@@ -60,7 +67,8 @@ const rdb = new RedisClient(REDIS_URL);
 const sql = new SQL(DATABASE_URL);
 await Promise.all([rdb.connect(), sql.connect()]);
 
-export const state: State = initializeState(rdb, sql);
+const oauth2Provider = newOAuth2Provider(clientId, clientSecret, redirectUri);
+export const state: State = initializeState(rdb, sql, oauth2Provider);
 
 export default definePlugin((_) => {
     process.on("SIGTERM", async () => {
