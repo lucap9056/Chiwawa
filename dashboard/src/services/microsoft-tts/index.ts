@@ -1,4 +1,4 @@
-import { buildResult, type Result } from "resultant.js/rustify";
+import { buildResultAsync, type Result } from "resultant.js/rustify";
 
 export interface IssueToken {
     region: string;
@@ -15,7 +15,7 @@ const TOKEN_VALIDITY_SECONDS = 10 * 60;
 const REFRESH_BEFORE_EXPIRATION_SECONDS = 60;
 
 const fetchIssueToken = async (now: number, region: string, apiKey: string): Promise<Result<IssueToken, Error>> =>
-    buildResult(() =>
+    buildResultAsync(() =>
         fetch(`https://${region}.api.cognitive.microsoft.com/sts/v1.0/issueToken`, {
             headers: {
                 "Ocp-Apim-Subscription-Key": apiKey,
@@ -32,7 +32,7 @@ const fetchIssueToken = async (now: number, region: string, apiKey: string): Pro
                 if (err instanceof Error) {
                     throw err;
                 }
-                throw new Error("");
+                throw new Error("Failed to issue TTS token.");
             }),
     );
 
