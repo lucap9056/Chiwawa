@@ -5,7 +5,8 @@ CREATE TABLE app_runtime_info (
     default_voice_model TEXT,
     tts_region TEXT,
     tts_api_key TEXT,
-    admins TEXT[]
+    admins TEXT[] NOT NULL,
+    CONSTRAINT chk_admins_not_empty CHECK (cardinality(admins) >= 1)
 );
 
 -- join_message/leave_message hold a MessageTemplate ({prefix, content, suffix?,

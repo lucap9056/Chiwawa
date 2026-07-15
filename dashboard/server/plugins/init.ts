@@ -17,17 +17,60 @@ export interface State {
     dispose: () => Promise<void>;
 }
 
+const REQUIRED_ENV_VARS = [
+    {
+        key: "REDIS_URL",
+        description: "Redis connection URL, required to store sessions and publish cache updates.",
+    },
+    {
+        key: "DATABASE_URL",
+        description: "Postgres connection URL, required to read/write app config and user data.",
+    },
+    {
+        key: "CLIENT_ID",
+        description: "Discord application client ID, required to build the OAuth2 login URL.",
+    },
+    {
+        key: "CLIENT_SECRET",
+        description: "Discord application client secret, required to exchange/refresh OAuth2 tokens.",
+    },
+    {
+        key: "REDIRECT_URI",
+        description: "Discord OAuth2 redirect URI, required to match the callback registered on Discord.",
+    },
+    {
+        key: "ADMINS",
+        description: "Comma-separated Discord user IDs, required to bootstrap the initial app config admins.",
+    },
+] as const;
+
+type RequiredEnvKey = (typeof REQUIRED_ENV_VARS)[number]["key"];
+
+const env = Object.fromEntries(REQUIRED_ENV_VARS.map(({ key }) => [key, (process.env[key] || "").trim()])) as Record<
+    RequiredEnvKey,
+    string
+>;
+
+const missingEnvVars = REQUIRED_ENV_VARS.filter(({ key }) => env[key] === "");
+if (missingEnvVars.length > 0) {
+    const detail = missingEnvVars.map(({ key, description }) => `  - ${key}: ${description}`).join("\n");
+    throw new Error(`ENV_CONFIG_ERROR: missing required environment variable(s):\n${detail}`);
+}
+
+const REDIS_URL = env.REDIS_URL;
+const DATABASE_URL = env.DATABASE_URL;
+
+const CLIENT_ID = env.CLIENT_ID;
+const CLIENT_SECRET = env.CLIENT_SECRET;
+const REDIRECT_URI = env.REDIRECT_URI;
+
 const TTS_REGION = process.env.TTS_REGION || "";
 const TTS_APIKEY = process.env.TTS_APIKEY || "";
-const REDIS_URL = process.env.REDIS_URL || "";
-const DATABASE_URL = process.env.DATABASE_URL || "";
 
-const clientId = process.env.CLIENT_ID || "";
-const clientSecret = process.env.CLIENT_SECRET || "";
-const redirectUri = process.env.REDIRECT_URI || "";
+const ADMINS = env.ADMINS;
 
-const initializeState = (rdb: RedisClient, sql: SQL, oauth2Provider: OAuth2Provider): State => {
-    const db = database.newDatabase(sql);
+const initializeState = (rdb: RedisClient, sql: SQL, oauth2Provider: OAuth2Provider, envAdmins: string): State => {
+    const db = database.newDatabase(sql, envAdmins.split(","));
     const ca = cache.newCache(rdb);
     const se = sessions.newSessions(rdb);
 
@@ -55,20 +98,12 @@ const initializeState = (rdb: RedisClient, sql: SQL, oauth2Provider: OAuth2Provi
     };
 };
 
-if (REDIS_URL === "") {
-    throw new Error("CACHE_CONNECTION_ERROR: REDIS_URL is empty.");
-}
-
-if (DATABASE_URL === "") {
-    throw new Error("DB_CONNECTION_ERROR: DATABASE_URL is empty.");
-}
-
 const rdb = new RedisClient(REDIS_URL);
 const sql = new SQL(DATABASE_URL);
 await Promise.all([rdb.connect(), sql.connect()]);
 
-const oauth2Provider = newOAuth2Provider(clientId, clientSecret, redirectUri);
-export const state: State = initializeState(rdb, sql, oauth2Provider);
+const oauth2Provider = newOAuth2Provider(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
+export const state: State = initializeState(rdb, sql, oauth2Provider, ADMINS);
 
 export default definePlugin((_) => {
     process.on("SIGTERM", async () => {

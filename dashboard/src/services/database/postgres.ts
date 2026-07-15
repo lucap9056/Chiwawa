@@ -1,5 +1,5 @@
 import type { SQL } from "bun";
-import { buildResult, None, type Option, type Result, Some } from "resultant.js/rustify";
+import { buildResultAsync, None, type Option, type Result, Some } from "resultant.js/rustify";
 import type { AppConfig, MessageTemplate, SpeechNotice } from "#/models";
 
 export class NotFoundError extends Error {
@@ -13,7 +13,7 @@ export const isNotFound = (error: Error): boolean => error instanceof NotFoundEr
 
 export interface Database {
     getAppConfig: () => Promise<Result<Option<AppConfig>, Error>>;
-    setAppConfig: (config: AppConfig) => Promise<Result<void, Error>>;
+    setAppConfig: (config: AppConfig, userId: string) => Promise<Result<void, Error>>;
     getUserSpeechNotice: (userId: string, guildId?: string) => Promise<Result<SpeechNotice, Error>>;
     setUserSpeechNotice: (userId: string, notice: SpeechNotice, guildId?: string) => Promise<Result<void, Error>>;
 }
@@ -56,9 +56,9 @@ const parseSnowflake = (label: string, value: string): bigint => {
     }
 };
 
-const newDatabase = (sql: SQL) => ({
+const newDatabase = (sql: SQL, defaultAdmins: string[]) => ({
     getAppConfig: () =>
-        buildResult(async () => {
+        buildResultAsync(async () => {
             const rows = await sql<AppConfigRow[]>`
                     SELECT default_join_suffix, default_leave_suffix, default_voice_model, tts_region, tts_api_key, admins
                     FROM app_runtime_info
@@ -77,22 +77,41 @@ const newDatabase = (sql: SQL) => ({
                 : None<AppConfig>();
         }),
 
-    setAppConfig: (config: AppConfig) =>
-        buildResult(async () => {
+    setAppConfig: (config: AppConfig, userId: string) =>
+        buildResultAsync(async () => {
             await sql`
-                    UPDATE app_runtime_info
-                    SET default_join_suffix = ${config.defaultJoinSuffix},
-                        default_leave_suffix = ${config.defaultLeaveSuffix},
-                        default_voice_model = ${config.defaultVoiceModel},
-                        tts_region = ${config.ttsRegion ?? null},
-                        tts_api_key = ${config.ttsApiKey ?? null},
-                        admins = ${sql.array(config.admins)}
-                    WHERE id = ${APP_CONFIG_ROW_ID}
+                    INSERT INTO app_runtime_info (
+                        id, 
+                        default_join_suffix, 
+                        default_leave_suffix, 
+                        default_voice_model, 
+                        tts_region, 
+                        tts_api_key, 
+                        admins
+                    )
+                    SELECT 
+                        ${APP_CONFIG_ROW_ID}, 
+                        ${config.defaultJoinSuffix}, 
+                        ${config.defaultLeaveSuffix}, 
+                        ${config.defaultVoiceModel}, 
+                        ${config.ttsRegion ?? null}, 
+                        ${config.ttsApiKey ?? null}, 
+                        ${sql.array(config.admins)}
+                    WHERE ${userId} = ANY(${sql.array(defaultAdmins)}::text[])
+                    ON CONFLICT (id) 
+                    DO UPDATE SET 
+                        default_join_suffix = EXCLUDED.default_join_suffix,
+                        default_leave_suffix = EXCLUDED.default_leave_suffix,
+                        default_voice_model = EXCLUDED.default_voice_model,
+                        tts_region = EXCLUDED.tts_region,
+                        tts_api_key = EXCLUDED.tts_api_key,
+                        admins = EXCLUDED.admins
+                    WHERE ${userId} = ANY(app_runtime_info.admins)
                     `;
         }),
 
     getUserSpeechNotice: (userId: string, guildId?: string) =>
-        buildResult(async () => {
+        buildResultAsync(async () => {
             const uid = parseSnowflake("user id", userId);
 
             if (!guildId) {
@@ -128,7 +147,7 @@ const newDatabase = (sql: SQL) => ({
         }),
 
     setUserSpeechNotice: (userId: string, notice: SpeechNotice, guildId?: string) =>
-        buildResult(async () => {
+        buildResultAsync(async () => {
             const uid = parseSnowflake("user id", userId);
             const joinMessage = notice.joinMessage ? JSON.stringify(notice.joinMessage) : null;
             const leaveMessage = notice.leaveMessage ? JSON.stringify(notice.leaveMessage) : null;
