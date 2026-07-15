@@ -1,18 +1,20 @@
 import type { RedisClient } from "bun";
-import { buildResult, None, type Option, type Result, Some } from "resultant.js/rustify";
+import { buildResultAsync, None, type Option, type Result, Some } from "resultant.js/rustify";
 import type { DiscordUser, OAuth2Token } from "#/services/oauth2-provider";
 
 const SESSION_KEY_PREFIX = "dashboard:v1:session:";
 
 export interface Session {
+    isAdmin: boolean;
     sessionId: string;
     userId: string;
     userToken: OAuth2Token;
     expireAt: Date;
+    guildIds: string[];
 }
 
 export interface Sessions {
-    create: (user: DiscordUser, oauthToken: OAuth2Token) => Promise<Result<string, Error>>;
+    create: (isAdmin: boolean, user: DiscordUser, oauthToken: OAuth2Token) => Promise<Result<Session, Error>>;
     get: (sessionId: string) => Promise<Result<Option<Session>, Error>>;
     del: (sessionId: string) => Promise<Result<void, Error>>;
     update: (session: Session) => Promise<Result<void, Error>>;
@@ -31,22 +33,24 @@ const writeSession = (rdb: RedisClient, session: Session): Promise<"OK"> =>
     );
 
 const newSessions = (rdb: RedisClient): Sessions => ({
-    create: (user: DiscordUser, oauthToken: OAuth2Token) =>
-        buildResult(async () => {
+    create: (isAdmin: boolean, user: DiscordUser, oauthToken: OAuth2Token) =>
+        buildResultAsync(async () => {
             const sessionId = crypto.randomUUID();
             const session: Session = {
+                isAdmin,
                 sessionId,
                 userId: user.id,
                 userToken: oauthToken,
                 expireAt: new Date(Date.now() + oauthToken.expires_in * 1000),
+                guildIds: [],
             };
 
             await writeSession(rdb, session);
-            return sessionId;
+            return session;
         }),
 
     get: (sessionId: string) =>
-        buildResult(async (): Promise<Option<Session>> => {
+        buildResultAsync(async (): Promise<Option<Session>> => {
             const raw = await rdb.get(sessionKey(sessionId));
             if (!raw) {
                 return None();
@@ -57,12 +61,12 @@ const newSessions = (rdb: RedisClient): Sessions => ({
             return Some(session);
         }),
     del: (sessionId: string): Promise<Result<void, Error>> =>
-        buildResult(async () => {
+        buildResultAsync(async () => {
             await rdb.del(sessionKey(sessionId));
         }),
 
     update: (session: Session) =>
-        buildResult(async () => {
+        buildResultAsync(async () => {
             await writeSession(rdb, session);
         }),
 });
