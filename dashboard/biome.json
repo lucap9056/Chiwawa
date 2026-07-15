@@ -19,7 +19,7 @@
     },
     "overrides": [
         {
-            "includes": ["src/**/*.{ts,tsx}", "!src/services/**/*.{ts,tsx}"],
+            "includes": ["src/**/*.{ts,tsx}", "!src/services/**/*.{ts,tsx}","!src/server/**/*.{ts,tsx}"],
             "linter": {
                 "rules": {
                     "style": {
