@@ -66,7 +66,9 @@ export const loginHandler = resultHandler(({ context: { state }, data }: LoginCt
                     .getUser(token)
                     .then((r) => r.mapErr<ErrorCode>(() => ErrorCode.AUTH_USER_FETCH_FAILED));
 
-                return userResult.andThenAsync((user) => createSession(state, false, user, token));
+                return userResult
+                    .andThenAsync((user) => createSession(state, false, user, token))
+                    .then((r) => r.map(() => true));
             });
         }),
 );
@@ -86,7 +88,7 @@ export const logoutHandler = resultHandler(({ context: { state, session: session
             .revoke(session.userToken.refresh_token)
             .then((r) => r.mapErr<ErrorCode>(() => ErrorCode.AUTH_LOGOUT_FAILED));
 
-        return revoked.andThenAsync(() => delSession(state));
+        return revoked.andThenAsync(() => delSession(state)).then((r) => r.map(() => true));
     }),
 );
 

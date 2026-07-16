@@ -14,7 +14,7 @@ export const getAccessTokenHandler = resultHandler(
     ({ context: { state, session: sessionResult } }: GetAccessTokenCtx) =>
         sessionResult.andThenAsync(async (session) => {
             if (session.guildIds.length === 0) {
-                return Err(ErrorCode.TTS_NO_GUILD_ACCESS);
+                return Err<IssueToken, ErrorCode>(ErrorCode.TTS_NO_GUILD_ACCESS);
             }
             return Ok<IssueToken, ErrorCode>(await state.tts.getIssueToken());
         }),

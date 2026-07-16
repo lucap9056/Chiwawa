@@ -1,7 +1,7 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { matchAsync, type Result } from "resultant.js/rustify";
 import type { ErrorCode } from "#/errors";
-import type { BaseSuccessMessage, ErrorMessage, ResponseMessage, SuccessMessage } from "#/server/messages";
+import type { ErrorMessage, ResponseMessage, SuccessMessage } from "#/server/messages";
 import { checkSession, getSession } from "#/server/sessions";
 import { state } from "#/services";
 
@@ -16,17 +16,10 @@ export const sessionMiddleware = createMiddleware()
         return next({ context: { session } });
     });
 
-const isEmptyResult = <V>(val: V): val is V & (undefined | null) => {
-    return val === undefined || val === null;
-};
-
 export const resultHandler = <CTX, V>(handler: (ctx: CTX) => Promise<Result<V, ErrorCode>>) => {
     return async (c: CTX) =>
         matchAsync<V, ErrorCode, ResponseMessage<V>>(handler(c), {
-            Ok: (v): BaseSuccessMessage | SuccessMessage<V> => {
-                if (isEmptyResult(v)) {
-                    return { success: true };
-                }
+            Ok: (v): SuccessMessage<V> => {
                 return { success: true, result: v };
             },
             Err: (err): ErrorMessage => ({ success: false, error: err }),

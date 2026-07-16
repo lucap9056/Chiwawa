@@ -119,12 +119,12 @@ export const updateUserSpeechNoticeHandler = resultHandler(
         sessionResult.andThenAsync(async (session) => {
             const { userId } = session;
             if (guildId && !session.guildIds.includes(guildId)) {
-                return Err(ErrorCode.PROFILE_GUILD_NOT_JOINED);
+                return Err<boolean, ErrorCode>(ErrorCode.PROFILE_GUILD_NOT_JOINED);
             }
 
             const updateResult = await state.db
                 .setUserSpeechNotice(userId, speechNotice, guildId)
-                .then((r) => r.mapErr(() => ErrorCode.PROFILE_SPEECH_NOTICE_UPDATE_FAILED));
+                .then((r) => r.map(() => true).mapErr(() => ErrorCode.PROFILE_SPEECH_NOTICE_UPDATE_FAILED));
             if (updateResult.isErr()) {
                 return updateResult;
             }
@@ -151,7 +151,7 @@ export const updateAppConfigHandler = resultHandler(
         sessionResult.andThenAsync(async (session) => {
             const { isAdmin, userId } = session;
             if (!isAdmin) {
-                return Err(ErrorCode.PROFILE_ADMIN_REQUIRED);
+                return Err<boolean, ErrorCode>(ErrorCode.PROFILE_ADMIN_REQUIRED);
             }
 
             const res = await state.db.setAppConfig(appConfig, userId);
@@ -166,7 +166,7 @@ export const updateAppConfigHandler = resultHandler(
                 });
             }
 
-            return res.mapErr(() => ErrorCode.PROFILE_APP_CONFIG_UPDATE_FAILED);
+            return res.map(() => true).mapErr(() => ErrorCode.PROFILE_APP_CONFIG_UPDATE_FAILED);
         }),
 );
 
@@ -183,11 +183,11 @@ export const getGuildMemberHandler = resultHandler(
     ({ context: { state, session: sessionResult }, data: { guildId } }: GetGuildMemberCtx) =>
         sessionResult.andThenAsync(async (session) => {
             if (!session.guildIds.includes(guildId)) {
-                return Err(ErrorCode.PROFILE_GUILD_NOT_JOINED);
+                return Err<boolean, ErrorCode>(ErrorCode.PROFILE_GUILD_NOT_JOINED);
             }
             return state.oauth2Provider
                 .getGuildMember(session.userToken, guildId)
-                .then((r) => r.mapErr(() => ErrorCode.PROFILE_GUILD_MEMBER_FETCH_FAILED));
+                .then((r) => r.map(() => true).mapErr(() => ErrorCode.PROFILE_GUILD_MEMBER_FETCH_FAILED));
         }),
 );
 

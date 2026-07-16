@@ -7,21 +7,21 @@ vi.mock("#/services", () => ({ state: {} }));
 import { resultHandler } from "./index";
 
 describe("resultHandler", () => {
-    it("maps Ok(undefined) to a bare success envelope with no result key", async () => {
+    it("maps Ok(undefined) to a success envelope carrying the value", async () => {
         const handler = resultHandler(async () => Ok<undefined, ErrorCode>(undefined));
 
         const message = await handler(undefined);
 
-        expect(message).toEqual({ success: true });
-        expect("result" in message).toBe(false);
+        expect(message).toEqual({ success: true, result: undefined });
+        expect("result" in message).toBe(true);
     });
 
-    it("maps Ok(null) to a bare success envelope with no result key", async () => {
+    it("maps Ok(null) to a success envelope carrying the value", async () => {
         const handler = resultHandler(async () => Ok<null, ErrorCode>(null));
 
         const message = await handler(undefined);
 
-        expect(message).toEqual({ success: true });
+        expect(message).toEqual({ success: true, result: null });
     });
 
     it("maps Ok(value) to a success envelope carrying the value", async () => {

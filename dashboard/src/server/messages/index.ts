@@ -4,11 +4,8 @@ type BaseMessage = {
     success: boolean;
 };
 
-export type BaseSuccessMessage = BaseMessage & {
+export type SuccessMessage<R> = BaseMessage & {
     success: true;
-};
-
-export type SuccessMessage<R> = BaseSuccessMessage & {
     result: R;
 };
 
@@ -17,4 +14,12 @@ export type ErrorMessage = BaseMessage & {
     error: ErrorCode;
 };
 
-export type ResponseMessage<R> = BaseSuccessMessage | SuccessMessage<R> | ErrorMessage;
+export type ResponseMessage<R> = SuccessMessage<R> | ErrorMessage;
+
+export const isSuccessMessage = <R>(msg: ResponseMessage<R>): msg is SuccessMessage<R> => {
+    return msg.success && "result" in msg;
+};
+
+export const isErrorMessage = <R>(msg: ResponseMessage<R>): msg is ErrorMessage => {
+    return !msg.success;
+};
