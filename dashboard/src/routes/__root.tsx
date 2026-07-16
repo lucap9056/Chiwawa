@@ -1,6 +1,7 @@
 import { Toaster } from "Sonner";
 import { ClientOnly, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { LoaderProvider } from "#/components/global/loader";
+import { ProfileProvider } from "#/components/global/profile";
 import appCss from "#/styles.css?url";
 
 export const Route = createRootRoute({
@@ -35,8 +36,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             </head>
             <body>
                 <ClientOnly>
-                    <LoaderProvider>{children}</LoaderProvider>
-                    <Toaster position="bottom-left" richColors />
+                    <LoaderProvider>
+                        <ProfileProvider>{children}</ProfileProvider>
+                        <Toaster position="bottom-left" richColors />
+                    </LoaderProvider>
                     <Scripts />
                 </ClientOnly>
             </body>

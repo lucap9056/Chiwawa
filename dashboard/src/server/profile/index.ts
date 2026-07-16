@@ -18,7 +18,7 @@ const createEmptyAppConfig = (): AppConfig => ({
     admins: [],
 });
 
-interface Profile {
+export interface Profile {
     isAdmin: boolean;
     user: DiscordUser;
     guilds: DiscordGuild[];
