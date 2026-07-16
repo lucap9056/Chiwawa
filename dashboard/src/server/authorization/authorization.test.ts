@@ -66,7 +66,7 @@ describe("server/authorization", () => {
 
             const message = await loginHandler({
                 context: { state },
-                data: { code: "auth-code-1234567", state: VALID_STATE, codeVerifier: VALID_CODE_VERIFIER },
+                data: { oauth2Code: "auth-code-1234567", oauth2State: VALID_STATE, codeVerifier: VALID_CODE_VERIFIER },
             });
 
             expect(message).toEqual({ success: false, error: ErrorCode.AUTH_STATE_COOKIE_MISSING });
@@ -78,7 +78,7 @@ describe("server/authorization", () => {
 
             const message = await loginHandler({
                 context: { state },
-                data: { code: "auth-code-1234567", state: VALID_STATE, codeVerifier: VALID_CODE_VERIFIER },
+                data: { oauth2Code: "auth-code-1234567", oauth2State: VALID_STATE, codeVerifier: VALID_CODE_VERIFIER },
             });
 
             expect(message).toEqual({ success: false, error: ErrorCode.AUTH_STATE_MISMATCH });
@@ -91,7 +91,7 @@ describe("server/authorization", () => {
 
             const message = await loginHandler({
                 context: { state },
-                data: { code: "auth-code-1234567", state: VALID_STATE, codeVerifier: VALID_CODE_VERIFIER },
+                data: { oauth2Code: "auth-code-1234567", oauth2State: VALID_STATE, codeVerifier: VALID_CODE_VERIFIER },
             });
 
             expect(message).toEqual({ success: false, error: ErrorCode.AUTH_TOKEN_EXCHANGE_FAILED });
@@ -104,7 +104,7 @@ describe("server/authorization", () => {
 
             const message = await loginHandler({
                 context: { state },
-                data: { code: "auth-code-1234567", state: VALID_STATE, codeVerifier: VALID_CODE_VERIFIER },
+                data: { oauth2Code: "auth-code-1234567", oauth2State: VALID_STATE, codeVerifier: VALID_CODE_VERIFIER },
             });
 
             expect(message).toEqual({ success: false, error: ErrorCode.AUTH_USER_FETCH_FAILED });
@@ -120,7 +120,7 @@ describe("server/authorization", () => {
 
             const message = await loginHandler({
                 context: { state },
-                data: { code: "auth-code-1234567", state: VALID_STATE, codeVerifier: VALID_CODE_VERIFIER },
+                data: { oauth2Code: "auth-code-1234567", oauth2State: VALID_STATE, codeVerifier: VALID_CODE_VERIFIER },
             });
 
             expect(message.success).toBe(true);

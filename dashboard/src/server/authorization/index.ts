@@ -20,7 +20,10 @@ interface GetLoginUrlCtx {
 export const getLoginUrlHandler = resultHandler(
     async ({ context: { state }, data: { codeChallenge } }: GetLoginUrlCtx) => {
         const oauth2State = Bun.randomUUIDv7("base64url");
-        return setOAuth2State(oauth2State).map(() => state.oauth2Provider.getAuthorizeUrl(oauth2State, codeChallenge));
+        return setOAuth2State(oauth2State).map(() => {
+            const oauth2Url = state.oauth2Provider.getAuthorizeUrl(oauth2State, codeChallenge);
+            return { oauth2Url, oauth2State };
+        });
     },
 );
 
@@ -45,20 +48,20 @@ const codeVerifierSchema = z
 
 interface LoginCtx {
     context: { state: State };
-    data: { code: string; state: string; codeVerifier: string };
+    data: { oauth2Code: string; oauth2State: string; codeVerifier: string };
 }
 
 export const loginHandler = resultHandler(({ context: { state }, data }: LoginCtx) =>
     getOAuth2State()
         .andThen((r) => r.okOr<ErrorCode>(ErrorCode.AUTH_STATE_COOKIE_MISSING))
         .andThen((oauth2State) =>
-            oauth2State === data.state
+            oauth2State === data.oauth2State
                 ? Ok<void, ErrorCode>(undefined)
                 : Err<void, ErrorCode>(ErrorCode.AUTH_STATE_MISMATCH),
         )
         .andThenAsync(async () => {
             const tokenResult = await state.oauth2Provider
-                .base(data.code, data.codeVerifier)
+                .base(data.oauth2Code, data.codeVerifier)
                 .then((r) => r.mapErr<ErrorCode>(() => ErrorCode.AUTH_TOKEN_EXCHANGE_FAILED));
 
             return tokenResult.andThenAsync(async (token) => {
@@ -75,7 +78,7 @@ export const loginHandler = resultHandler(({ context: { state }, data }: LoginCt
 
 export const login = createServerFn()
     .middleware([serverStateMiddleware])
-    .validator(z.object({ code: oauth2CodeSchema, state: oauth2StateSchema, codeVerifier: codeVerifierSchema }))
+    .validator(z.object({ oauth2Code: oauth2CodeSchema, oauth2State: oauth2StateSchema, codeVerifier: codeVerifierSchema }))
     .handler(loginHandler);
 
 interface LogoutCtx {
