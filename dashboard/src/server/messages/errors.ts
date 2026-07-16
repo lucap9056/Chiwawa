@@ -56,6 +56,16 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
     // Cross-cutting
     VALIDATION_FAILED: "Request validation failed.",
     INTERNAL_ERROR: "Internal server error.",
+
+    // Client-side — never produced server-side, listed here only to satisfy
+    // this Record's exhaustiveness over ErrorCode.
+    NETWORK_UNREACHABLE: "Could not reach the server.",
+    NETWORK_ABORTED: "Request was aborted.",
+    NETWORK_INVALID_RESPONSE: "Server response could not be parsed.",
+    AUTH_POPUP_BLOCKED: "Failed to open the login popup window.",
+    AUTH_LOGIN_CANCELLED: "User closed the login window before completing login.",
+    AUTH_DISCORD_LOGIN_FAILED: "Discord reported a login failure (e.g. the user denied consent).",
+    AUTH_CHALLENGE_GENERATION_FAILED: "Failed to generate the PKCE code verifier/challenge.",
 };
 
 export const errorMessage = (code: ErrorCode): string => ERROR_MESSAGES[code];

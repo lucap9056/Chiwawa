@@ -55,6 +55,29 @@ export const ErrorCode = {
     // Cross-cutting
     VALIDATION_FAILED: "VALIDATION_FAILED",
     INTERNAL_ERROR: "INTERNAL_ERROR",
+
+    // Client-side (src/api) — synthesized in the browser, so they never appear
+    // in a server ResponseMessage.
+    NETWORK_UNREACHABLE: "NETWORK_UNREACHABLE",
+    NETWORK_ABORTED: "NETWORK_ABORTED",
+    NETWORK_INVALID_RESPONSE: "NETWORK_INVALID_RESPONSE",
+    AUTH_POPUP_BLOCKED: "AUTH_POPUP_BLOCKED",
+    AUTH_LOGIN_CANCELLED: "AUTH_LOGIN_CANCELLED",
+    AUTH_DISCORD_LOGIN_FAILED: "AUTH_DISCORD_LOGIN_FAILED",
+    AUTH_CHALLENGE_GENERATION_FAILED: "AUTH_CHALLENGE_GENERATION_FAILED",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+export const networkError = (err: unknown): ErrorCode => {
+    if (err instanceof DOMException && err.name === "AbortError") {
+        return ErrorCode.NETWORK_ABORTED;
+    }
+    if (err instanceof TypeError) {
+        return ErrorCode.NETWORK_UNREACHABLE;
+    }
+    if (err instanceof SyntaxError) {
+        return ErrorCode.NETWORK_INVALID_RESPONSE;
+    }
+    return ErrorCode.INTERNAL_ERROR;
+};
