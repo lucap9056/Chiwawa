@@ -10,6 +10,8 @@ COPY public ./public
 COPY server ./server
 COPY src ./src
 
+ENV BASE_PATH=/chiwawa/
+
 RUN bun run build
 
 FROM oven/bun:1.3-slim
