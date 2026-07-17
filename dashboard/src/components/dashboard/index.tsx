@@ -1,7 +1,7 @@
-import { toast } from "Sonner";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { HashRouter, Link, Route, Routes } from "react-router-dom";
+import { toast } from "sonner";
 import api from "#/api";
 import AppConfigEditor from "#/components/app-config";
 import { GuildsMemberProvider } from "#/components/global/guilds-member";

@@ -1,10 +1,10 @@
-import { toast } from "Sonner";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { match, None, Option, Some } from "resultant.js/rustify";
+import { toast } from "sonner";
 import api from "#/api";
 import Switch from "#/components/form/switch";
 import { type GuildsMember, useGuildsMember } from "#/components/global/guilds-member";

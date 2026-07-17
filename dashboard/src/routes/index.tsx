@@ -1,8 +1,8 @@
-import { Toaster, toast } from "Sonner";
 import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Err, Ok } from "resultant.js/rustify";
+import { Toaster, toast } from "sonner";
 import api from "#/api";
 import { Dashboard } from "#/components/dashboard";
 import { LoaderProvider, useLoader } from "#/components/global/loader";

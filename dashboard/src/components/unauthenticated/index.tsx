@@ -1,6 +1,6 @@
-import { toast } from "Sonner";
 import type React from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import api from "#/api";
 import { useLoader } from "#/components/global/loader";
 import { useProfile } from "#/components/global/profile";
