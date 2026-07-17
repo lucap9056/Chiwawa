@@ -57,7 +57,7 @@ const newClient = async (token: string, state: State) => {
         listenVoiceStateUpdate(client, state, connections);
     }
 
-    state.cache.map(async (cache) => {
+    state.cache.mapAsync(async (cache) => {
         listenGuildSync(client, cache);
         await guildSync.syncGuilds(client, cache);
     });

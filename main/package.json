@@ -18,7 +18,7 @@
     "@snazzah/davey": "^0.1.10",
     "discord.js": "^14.25.1",
     "opusscript": "^0.1.1",
-    "resultant.js": "2.0.0",
+    "resultant.js": "2.1.0",
     "sodium-native": "^5.1.0"
   },
   "devDependencies": {

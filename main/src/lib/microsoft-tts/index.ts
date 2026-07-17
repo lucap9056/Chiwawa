@@ -1,5 +1,5 @@
 import type { AppConfig } from "models";
-import { buildResult, match, None, type Option, Some } from "resultant.js/rustify";
+import { buildResultAsync, matchAsync, None, type Option, type Result, Some } from "resultant.js/rustify";
 
 interface Context {
     region: string;
@@ -56,7 +56,7 @@ type Languages = {
 };
 
 const getLanguages = async (config: AppConfig) =>
-    buildResult(async () => {
+    buildResultAsync(async () => {
         const languages: Languages = { ...emptyLanguages };
         const region = getRegion(config);
         const apiKey = getApiKey(config);
@@ -92,45 +92,43 @@ const getTTSMessageLanguage = ({ languages }: Context, language: string): Langua
 const getTTSMessageVoiceModel = (language: Language, voiceName: string): VoiceModel =>
     language[voiceName] || Object.values(language)[0];
 
-const fetchSpeech = async (
+const fetchSpeech = (
     { region, apiKey }: Context,
     { Locale, ShortName }: VoiceModel,
     content: string,
-): Promise<Uint8Array> => {
-    const body = `
+): Promise<Result<Uint8Array, Error>> =>
+    buildResultAsync(async () => {
+        const body = `
 <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${Locale}">
     <voice name="${ShortName}">${content}</voice>
 </speak>
 `;
+        const response = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+            method: "POST",
+            body,
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Ocp-Apim-Subscription-Key": apiKey,
+                "Content-Type": "application/ssml+xml",
+                "X-Microsoft-OutputFormat": "ogg-48khz-16bit-mono-opus",
+                "User-Agent": "Chiwawa",
+            },
+        });
 
-    const response = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-        method: "POST",
-        body,
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Ocp-Apim-Subscription-Key": apiKey,
-            "Content-Type": "application/ssml+xml",
-            "X-Microsoft-OutputFormat": "ogg-48khz-16bit-mono-opus",
-            "User-Agent": "Chiwawa",
-        },
+        return response.bytes();
     });
 
-    return response.bytes();
-};
-
 export interface MicrosoftTTS {
-    fetchSpeech: (message: TTSMessage) => Promise<Uint8Array>;
+    fetchSpeech: (message: TTSMessage) => Promise<Result<Uint8Array, Error>>;
 }
 
 const initializeTTS = async (config: AppConfig): Promise<Option<MicrosoftTTS>> => {
-    const languages = await getLanguages(config);
-
-    return match(languages, {
+    return matchAsync(getLanguages(config), {
         Ok(value) {
             const ctx = createContext(config, value);
 
             return Some<MicrosoftTTS>({
-                fetchSpeech: async (message: TTSMessage): Promise<Uint8Array> => {
+                fetchSpeech: async (message: TTSMessage) => {
                     const languageMap = getTTSMessageLanguage(ctx, message.language);
                     const voiceModel = getTTSMessageVoiceModel(languageMap, message.voiceModel);
                     return fetchSpeech(ctx, voiceModel, message.content);

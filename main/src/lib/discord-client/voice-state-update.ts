@@ -2,7 +2,7 @@ import type { Client, GuildChannel, GuildMember, VoiceBasedChannel, VoiceState }
 import type { State } from "lib/appstate";
 import { type Connection, type Connections, newConnection } from "lib/discord-client/voice-connection";
 import { generateMessages } from "lib/discord-client/voice-message";
-import { match, None, Option, Some } from "resultant.js/rustify";
+import { match, matchAsync, None, Option, Some } from "resultant.js/rustify";
 
 export interface VoiceStateUpdateContext {
     client: Client<true>;
@@ -59,13 +59,13 @@ const cacheSpeech = async (
     join: boolean,
     speech: Option<Uint8Array>,
 ): Promise<void> => {
-    await ctx.appState.cache.map(async (cache) => {
+    ctx.appState.cache.mapAsync(async (cache) => {
         const result = await cache.setSpeech(member.user.id, member.guild.id, join, speech);
         result.mapErr((err) => console.error(`voice-state-update: failed to cache speech: ${err.message}`));
     });
 };
 
-const synthesizeAndCache = async (
+const synthesizeSpeech = async (
     ctx: VoiceStateUpdateContext,
     member: GuildMember,
     join: boolean,
@@ -75,20 +75,21 @@ const synthesizeAndCache = async (
 
     return match(message, {
         async None() {
-            await cacheSpeech(ctx, member, join, None<Uint8Array>());
             return None<Uint8Array>();
         },
         async Some(msg) {
             return match(appState.tts, {
-                // Not cached: this is a transient condition (updateTTS can flip it back to
-                // Some later), not the member's own choice like being muted.
-                async None() {
+                None: async () => {
                     return None<Uint8Array>();
                 },
-                async Some(tts) {
-                    const speech = await tts.fetchSpeech(msg);
-                    await cacheSpeech(ctx, member, join, Some(speech));
-                    return Some(speech);
+                Some: async (tts) => {
+                    return matchAsync(tts.fetchSpeech(msg), {
+                        Ok: (speech) => Some<Uint8Array>(speech),
+                        Err: (err) => {
+                            console.error(err);
+                            return None<Uint8Array>();
+                        }
+                    })
                 },
             });
         },
@@ -99,42 +100,36 @@ const resolveSpeech = async (
     ctx: VoiceStateUpdateContext,
     member: GuildMember,
     join: boolean,
-): Promise<Option<Uint8Array>> =>
-    match(ctx.appState.cache, {
-        async None() {
-            return synthesizeAndCache(ctx, member, join);
-        },
-        async Some(cache) {
-            const lookup = await cache.getSpeech(member.user.id, member.guild.id, join);
+): Promise<Option<Uint8Array>> => match(ctx.appState.cache, {
+    None: () => synthesizeSpeech(ctx, member, join),
+    async Some(cache) {
+        return matchAsync(cache.getSpeech(member.user.id, member.guild.id, join), {
+            async Ok(entry) {
+                if (entry.hit) {
+                    return entry.speech;
+                }
+                const speech = await synthesizeSpeech(ctx, member, join);
+                cacheSpeech(ctx, member, join, speech).catch((err) => {
+                    console.error(err);
+                });
+                return speech;
+            },
+            async Err(err) {
+                console.error(`voice-state-update: speech cache lookup failed: ${err.message}`);
+                return synthesizeSpeech(ctx, member, join);
+            },
+        });
+    },
+});
 
-            return match(lookup, {
-                async Ok(entry) {
-                    return entry.hit ? entry.speech : synthesizeAndCache(ctx, member, join);
-                },
-                async Err(err) {
-                    console.error(`voice-state-update: speech cache lookup failed: ${err.message}`);
-                    return synthesizeAndCache(ctx, member, join);
-                },
-            });
-        },
-    });
-
-const announce = async (
-    ctx: VoiceStateUpdateContext,
-    connection: Connection,
-    member: GuildMember,
-    join: boolean = false,
-): Promise<void> => {
-    const speech = await resolveSpeech(ctx, member, join);
-    speech.map((buf) => connection.queue(buf));
-};
 
 const joinVoiceChannel = async (ctx: VoiceStateUpdateContext, channel: VoiceBasedChannel, member: GuildMember) => {
     match(getVoiceConnection(ctx.connections, channel.guildId), {
         async Some(voiceConnection) {
             if (voiceConnection.channel.id !== channel.id || getHumanMemberCount(channel) <= 1) return;
 
-            await announce(ctx, voiceConnection, member, true);
+            const speech = await resolveSpeech(ctx, member, true);
+            speech.map((buf) => voiceConnection.queue(buf));
         },
 
         async None() {
@@ -162,7 +157,8 @@ const moveVoiceChannel = async (
     match(getVoiceConnection(ctx.connections, guildId), {
         async Some(connection) {
             if (isSelfInVoiceChannel(ctx, joinChannel) && getHumanMemberCount(joinChannel) > 1) {
-                await announce(ctx, connection, member, true);
+                const speech = await resolveSpeech(ctx, member, true);
+                speech.map((buf) => connection.queue(buf));
             }
 
             if (isSelfInVoiceChannel(ctx, leaveChannel)) {
@@ -181,7 +177,8 @@ const moveVoiceChannel = async (
                         appendVoiceConnection(ctx.connections, joinChannel);
                     }
                 } else {
-                    await announce(ctx, connection, member);
+                    const speech = await resolveSpeech(ctx, member, false);
+                    speech.map((buf) => connection.queue(buf));
                     return;
                 }
 
@@ -213,7 +210,8 @@ const leaveVoiceChannel = async (ctx: VoiceStateUpdateContext, channel: VoiceBas
             if (connection.channel !== channel) return;
 
             if (hasHumanMembers(channel)) {
-                await announce(ctx, connection, member);
+                const speech = await resolveSpeech(ctx, member, false);
+                speech.map((buf) => connection.queue(buf));
             } else {
                 removeVoiceConnection(ctx.connections, guildId);
             }
@@ -280,7 +278,7 @@ const handler = (ctx: VoiceStateUpdateContext) => {
                 return;
             }
         },
-        None() {},
+        None() { },
     });
 };
 
