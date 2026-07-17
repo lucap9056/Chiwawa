@@ -1,0 +1,60 @@
+{
+    "login": {
+        "discord": "Login with Discord",
+        "description": "You need to login your Discord account to use this Chiwawa dashboard."
+    },
+    "app": {
+        "initializing": "Initializing...",
+        "save": "Save",
+        "saving": "Saving...",
+        "saved": "Saved",
+        "save-failed": "failed",
+        "logout": "Logout",
+        "back": "Back",
+        "tts-load-failed": "Failed to load TTS voices"
+    },
+    "appconfig": {
+        "admins": {
+            "block": "Admins",
+            "append": {
+                "label": "Append admin",
+                "placeholder": "user id"
+            },
+            "alerts": {
+                "admin-minimum": "A minimum of one administrator is needed."
+            },
+            "remove-confirm": {
+                "title": "Remove admin?",
+                "description": "{{admin}} will lose admin access immediately.",
+                "confirm": "Remove",
+                "cancel": "Cancel"
+            }
+        },
+        "default-suffix": {
+            "block": "Default Suffix",
+            "join": {
+                "label": "Join suffix"
+            },
+            "leave": {
+                "label": "Leave suffix"
+            }
+        },
+        "tts": {
+            "block": "TTS",
+            "region": {
+                "label": "Region"
+            },
+            "api-key": {
+                "label": "API key"
+            }
+        }
+    },
+    "userconfig": {
+        "global": "Global",
+        "mute": "Mute",
+        "default": "Default",
+        "remove-suffix": "Remove Suffix",
+        "inherit-global": "Inherit Global",
+        "advanced-mode": "Advanced Mode"
+    }
+}
