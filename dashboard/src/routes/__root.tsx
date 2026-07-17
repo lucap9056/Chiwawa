@@ -23,7 +23,12 @@ export const Route = createRootRoute({
             },
             {
                 rel: "icon",
+                type: "image/x-icon",
                 href: `${import.meta.env.BASE_URL}favicon.ico`,
+            },
+            {
+                rel: "stylesheet",
+                href: "https://fonts.googleapis.com/css2?family=Poetsen+One&family=Ubuntu:wght@400;700&display=swap",
             },
         ],
     }),
