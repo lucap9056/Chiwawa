@@ -21,7 +21,7 @@ import {
     retrieveProfileHandler,
     updateAppConfigHandler,
     updateUserSpeechNoticeHandler,
-} from "./index";
+} from "./handlers";
 
 afterEach(() => {
     vi.restoreAllMocks();
@@ -190,12 +190,13 @@ describe("updateUserSpeechNoticeHandler", () => {
         });
 
         expect(message.success).toBe(true);
-        expect(state.cache.delSpeech).toHaveBeenCalledWith("1", "100");
+        expect(state.cache.delSpeech).toHaveBeenCalledWith("1", ["100"]);
     });
 
-    it("does not touch the speech cache for a global (no guildId) update", async () => {
+    it("invalidates the speech cache for every guild inheriting the global notice on a global (no guildId) update", async () => {
         const state = createFakeState();
-        const session = fakeSession({ userId: "1" });
+        const session = fakeSession({ userId: "1", guildIds: ["100", "200"] });
+        vi.mocked(state.db.getUserInheritGlobalGuildIds).mockResolvedValueOnce(Ok(["100", "200"]));
 
         const message = await updateUserSpeechNoticeHandler({
             context: { state, session: Ok(session) },
@@ -203,7 +204,10 @@ describe("updateUserSpeechNoticeHandler", () => {
         });
 
         expect(message.success).toBe(true);
-        expect(state.cache.delSpeech).not.toHaveBeenCalled();
+        expect(state.db.getUserInheritGlobalGuildIds).toHaveBeenCalledWith("1");
+        await vi.waitFor(() => {
+            expect(state.cache.delSpeech).toHaveBeenCalledWith("1", ["100", "200"]);
+        });
     });
 
     it("returns PROFILE_SPEECH_NOTICE_UPDATE_FAILED when the db write fails", async () => {
@@ -241,7 +245,7 @@ describe("updateAppConfigHandler", () => {
         const message = await updateAppConfigHandler({ context: { state, session: Ok(session) }, data: { appConfig } });
 
         expect(message.success).toBe(true);
-        expect(state.db.setAppConfig).toHaveBeenCalledWith(appConfig, "1");
+        expect(state.db.setAppConfig).toHaveBeenCalledWith(appConfig);
         expect(state.updateTTS).toHaveBeenCalledWith("eastus", "key");
         expect(state.cache.saveConfig).toHaveBeenCalledWith(appConfig);
     });

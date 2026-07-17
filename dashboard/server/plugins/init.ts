@@ -1,4 +1,4 @@
-import { RedisClient, SQL } from "bun";
+import type { RedisClient, SQL } from "bun";
 import { definePlugin } from "nitro";
 import type { Result } from "resultant.js/rustify";
 import cache, { type Cache } from "#/services/cache";
@@ -8,6 +8,7 @@ import { newOAuth2Provider, type OAuth2Provider } from "#/services/oauth2-provid
 import sessions, { type Sessions } from "#/services/sessions";
 
 export interface State {
+    defaultAdmins: string[];
     oauth2Provider: OAuth2Provider;
     db: Database;
     cache: Cache;
@@ -70,13 +71,15 @@ const TTS_APIKEY = process.env.TTS_APIKEY || "";
 const ADMINS = env.ADMINS;
 
 const initializeState = (rdb: RedisClient, sql: SQL, oauth2Provider: OAuth2Provider, envAdmins: string): State => {
-    const db = database.newDatabase(sql, envAdmins.split(","));
+    const defaultAdmins = envAdmins.split(",");
+    const db = database.newDatabase(sql);
     const ca = cache.newCache(rdb);
     const se = sessions.newSessions(rdb);
 
     let tts: TTSMessage = initializeTTS(TTS_REGION, TTS_APIKEY);
 
     return {
+        defaultAdmins,
         oauth2Provider,
         db: db,
         cache: ca,
@@ -98,8 +101,10 @@ const initializeState = (rdb: RedisClient, sql: SQL, oauth2Provider: OAuth2Provi
     };
 };
 
-const rdb = new RedisClient(REDIS_URL);
-const sql = new SQL(DATABASE_URL);
+const { RedisClient: RedisClientCtor, SQL: SQLCtor } = await import(/* @vite-ignore */ "bun");
+
+const rdb = new RedisClientCtor(REDIS_URL);
+const sql = new SQLCtor(DATABASE_URL);
 await Promise.all([rdb.connect(), sql.connect()]);
 
 const oauth2Provider = newOAuth2Provider(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);

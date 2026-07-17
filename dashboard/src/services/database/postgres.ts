@@ -1,6 +1,6 @@
 import type { SQL } from "bun";
 import { buildResultAsync, None, type Option, type Result, Some } from "resultant.js/rustify";
-import type { AppConfig, MessageTemplate, SpeechNotice } from "#/models";
+import type { AppConfig, SpeechNotice } from "#/models";
 
 export class NotFoundError extends Error {
     constructor(detail?: string) {
@@ -13,9 +13,10 @@ export const isNotFound = (error: Error): boolean => error instanceof NotFoundEr
 
 export interface Database {
     getAppConfig: () => Promise<Result<Option<AppConfig>, Error>>;
-    setAppConfig: (config: AppConfig, userId: string) => Promise<Result<void, Error>>;
+    setAppConfig: (config: AppConfig) => Promise<Result<void, Error>>;
     getUserSpeechNotice: (userId: string, guildId?: string) => Promise<Result<SpeechNotice, Error>>;
     setUserSpeechNotice: (userId: string, notice: SpeechNotice, guildId?: string) => Promise<Result<void, Error>>;
+    getUserInheritGlobalGuildIds: (userId: string) => Promise<Result<string[], Error>>;
 }
 
 const APP_CONFIG_ROW_ID = "0";
@@ -32,8 +33,8 @@ interface AppConfigRow {
 interface UserSpeechNoticeRow {
     inherit_global: boolean;
     muted: boolean;
-    join_message: MessageTemplate | null;
-    leave_message: MessageTemplate | null;
+    join_message: string | null;
+    leave_message: string | null;
 }
 
 const toSpeechNotice = (row: UserSpeechNoticeRow | undefined): SpeechNotice => {
@@ -43,8 +44,8 @@ const toSpeechNotice = (row: UserSpeechNoticeRow | undefined): SpeechNotice => {
     return {
         inheritGlobal: row.inherit_global,
         muted: row.muted,
-        joinMessage: row.join_message ?? undefined,
-        leaveMessage: row.leave_message ?? undefined,
+        joinMessage: row.join_message ? JSON.parse(row.join_message) : undefined,
+        leaveMessage: row.leave_message ? JSON.parse(row.leave_message) : undefined,
     };
 };
 
@@ -56,7 +57,7 @@ const parseSnowflake = (label: string, value: string): bigint => {
     }
 };
 
-const newDatabase = (sql: SQL, defaultAdmins: string[]) => ({
+const newDatabase = (sql: SQL) => ({
     getAppConfig: () =>
         buildResultAsync(async () => {
             const rows = await sql<AppConfigRow[]>`
@@ -77,36 +78,35 @@ const newDatabase = (sql: SQL, defaultAdmins: string[]) => ({
                 : None<AppConfig>();
         }),
 
-    setAppConfig: (config: AppConfig, userId: string) =>
+    setAppConfig: (config: AppConfig) =>
         buildResultAsync(async () => {
             await sql`
                     INSERT INTO app_runtime_info (
-                        id, 
-                        default_join_suffix, 
-                        default_leave_suffix, 
-                        default_voice_model, 
-                        tts_region, 
-                        tts_api_key, 
+                        id,
+                        default_join_suffix,
+                        default_leave_suffix,
+                        default_voice_model,
+                        tts_region,
+                        tts_api_key,
                         admins
                     )
-                    SELECT 
-                        ${APP_CONFIG_ROW_ID}, 
-                        ${config.defaultJoinSuffix}, 
-                        ${config.defaultLeaveSuffix}, 
-                        ${config.defaultVoiceModel}, 
-                        ${config.ttsRegion ?? null}, 
-                        ${config.ttsApiKey ?? null}, 
-                        ${sql.array(config.admins)}
-                    WHERE ${userId} = ANY(${sql.array(defaultAdmins)}::text[])
-                    ON CONFLICT (id) 
-                    DO UPDATE SET 
+                    VALUES (
+                        ${APP_CONFIG_ROW_ID},
+                        ${config.defaultJoinSuffix},
+                        ${config.defaultLeaveSuffix},
+                        ${config.defaultVoiceModel},
+                        ${config.ttsRegion ?? null},
+                        ${config.ttsApiKey ?? null},
+                        ${sql.array(config.admins, "TEXT")}
+                    )
+                    ON CONFLICT (id)
+                    DO UPDATE SET
                         default_join_suffix = EXCLUDED.default_join_suffix,
                         default_leave_suffix = EXCLUDED.default_leave_suffix,
                         default_voice_model = EXCLUDED.default_voice_model,
                         tts_region = EXCLUDED.tts_region,
                         tts_api_key = EXCLUDED.tts_api_key,
                         admins = EXCLUDED.admins
-                    WHERE ${userId} = ANY(app_runtime_info.admins)
                     `;
         }),
 
@@ -146,6 +146,18 @@ const newDatabase = (sql: SQL, defaultAdmins: string[]) => ({
             return toSpeechNotice(rows[0]);
         }),
 
+    getUserInheritGlobalGuildIds: (userId: string) =>
+        buildResultAsync(async () => {
+            const uid = parseSnowflake("user id", userId);
+            const rows = await sql<{ guild_id: string }[]>`
+                    SELECT ugn.guild_id
+                    FROM user_guild_notices ugn
+                    JOIN speech_notices sn ON sn.id = ugn.speech_notice_id
+                    WHERE ugn.user_config_id = ${uid} AND sn.inherit_global = true
+                    `;
+            return rows.map((row) => row.guild_id);
+        }),
+
     setUserSpeechNotice: (userId: string, notice: SpeechNotice, guildId?: string) =>
         buildResultAsync(async () => {
             const uid = parseSnowflake("user id", userId);
@@ -158,9 +170,6 @@ const newDatabase = (sql: SQL, defaultAdmins: string[]) => ({
                         ON CONFLICT (id) DO NOTHING
                         `;
 
-                // Locks this user's row for the rest of the transaction so concurrent
-                // writes for the same user serialize instead of racing to create
-                // duplicate speech_notices rows.
                 const [{ global_speech_notice_id: existingGlobalId }] = await tx<
                     { global_speech_notice_id: number | null }[]
                 >`

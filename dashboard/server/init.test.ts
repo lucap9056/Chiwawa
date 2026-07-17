@@ -68,13 +68,13 @@ describe("server/plugins/init", () => {
         setAllRequiredEnv();
         delete process.env[missingKey];
 
-        await expect(import("./init")).rejects.toThrow(missingKey);
+        await expect(import("./plugins/init")).rejects.toThrow(missingKey);
     });
 
     it("connects to redis/postgres and builds state when all required env vars are present", async () => {
         setAllRequiredEnv();
 
-        const mod = await import("./init");
+        const mod = await import("./plugins/init");
 
         expect(mod.state.oauth2Provider).toBeDefined();
         expect(mod.state.db).toBeDefined();
@@ -88,7 +88,7 @@ describe("server/plugins/init", () => {
 
     it("dispose() closes both the redis and postgres clients", async () => {
         setAllRequiredEnv();
-        const mod = await import("./init");
+        const mod = await import("./plugins/init");
 
         await mod.state.dispose();
 
@@ -100,7 +100,7 @@ describe("server/plugins/init", () => {
         setAllRequiredEnv();
         const fetchMock = vi.fn().mockResolvedValue(new Response("new-token"));
         vi.stubGlobal("fetch", fetchMock);
-        const mod = await import("./init");
+        const mod = await import("./plugins/init");
 
         const result = await mod.state.updateTTS("eastus", "new-api-key");
 
@@ -114,7 +114,7 @@ describe("server/plugins/init", () => {
         setAllRequiredEnv();
         const fetchMock = vi.fn().mockRejectedValue(new Error("azure down"));
         vi.stubGlobal("fetch", fetchMock);
-        const mod = await import("./init");
+        const mod = await import("./plugins/init");
 
         const result = await mod.state.updateTTS("eastus", "bad-key");
 

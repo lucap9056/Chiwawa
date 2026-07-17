@@ -44,12 +44,27 @@ describe("services/cache/redis", () => {
             const fake = createFakeRedisClient();
             const store = cache.newCache(asRedisClient(fake));
 
-            const result = await store.delSpeech("42", "100");
+            const result = await store.delSpeech("42", ["100"]);
 
             expect(result.isOk()).toBe(true);
             expect(fake.del).toHaveBeenCalledWith(
                 `${SPEECH_CACHE_PREFIX}:42:100:join`,
                 `${SPEECH_CACHE_PREFIX}:42:100:leave`,
+            );
+        });
+
+        it("deletes the join/leave keys for every guild id in a single call", async () => {
+            const fake = createFakeRedisClient();
+            const store = cache.newCache(asRedisClient(fake));
+
+            const result = await store.delSpeech("42", ["100", "200"]);
+
+            expect(result.isOk()).toBe(true);
+            expect(fake.del).toHaveBeenCalledWith(
+                `${SPEECH_CACHE_PREFIX}:42:100:join`,
+                `${SPEECH_CACHE_PREFIX}:42:100:leave`,
+                `${SPEECH_CACHE_PREFIX}:42:200:join`,
+                `${SPEECH_CACHE_PREFIX}:42:200:leave`,
             );
         });
     });

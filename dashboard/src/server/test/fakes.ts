@@ -178,6 +178,7 @@ export const createFakeDatabase = (): Database => ({
     setAppConfig: vi.fn(async () => Ok<void, Error>(undefined)),
     getUserSpeechNotice: vi.fn(async () => Ok<SpeechNotice, Error>(fakeSpeechNotice())),
     setUserSpeechNotice: vi.fn(async () => Ok<void, Error>(undefined)),
+    getUserInheritGlobalGuildIds: vi.fn(async () => Ok<string[], Error>([])),
 });
 
 export const createFakeCache = (): Cache => ({
@@ -196,6 +197,7 @@ export const createFakeSessions = (): Sessions => ({
 });
 
 export const createFakeTTS = (): TTSMessage => ({
+    getCredentials: vi.fn(() => ({ region: "fake-region", apiKey: "fake-api-key" })),
     getIssueToken: vi.fn(
         async (): Promise<IssueToken> => ({
             token: "fake-tts-token",
@@ -203,9 +205,11 @@ export const createFakeTTS = (): TTSMessage => ({
             region: "fake-region",
         }),
     ),
+    getLanguages: vi.fn(async () => ({})),
 });
 
 export const createFakeState = (overrides: Partial<State> = {}): State => ({
+    defaultAdmins: [],
     oauth2Provider: createFakeOAuth2Provider(),
     db: createFakeDatabase(),
     cache: createFakeCache(),

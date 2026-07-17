@@ -5,7 +5,7 @@ import { CONFIG_UPDATED_CHANNEL, GUILD_IDS_KEY, SPEECH_CACHE_PREFIX } from "./pr
 
 export interface Cache {
     intersectGuildIds: (guildIds: string[]) => Promise<Result<string[], Error>>;
-    delSpeech: (userId: string, guildId: string) => Promise<Result<void, Error>>;
+    delSpeech: (userId: string, guildIds: string[]) => Promise<Result<void, Error>>;
     saveConfig: (config: AppConfig) => Promise<Result<number, Error>>;
 }
 
@@ -23,11 +23,13 @@ const newCache = (rdb: RedisClient) => ({
             const flags = await rdb.smismember(GUILD_IDS_KEY, guildIds[0], ...guildIds.slice(1));
             return guildIds.filter((_, i) => flags[i] === 1);
         }),
-    delSpeech: (userId: string, guildId: string) =>
+    delSpeech: (userId: string, guildIds: string[]) =>
         buildResultAsync(async (): Promise<void> => {
-            const join = speechCacheKey(userId, guildId, true);
-            const leave = speechCacheKey(userId, guildId, false);
-            await rdb.del(join, leave);
+            const keys = [];
+            for (const guildId of guildIds) {
+                keys.push(speechCacheKey(userId, guildId, true), speechCacheKey(userId, guildId, false));
+            }
+            await rdb.del(...keys);
         }),
     saveConfig: (config: AppConfig) => buildResultAsync(() => publishConfigUpdated(rdb, config)),
 });
