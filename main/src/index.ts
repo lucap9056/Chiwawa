@@ -4,7 +4,7 @@ import Config from "lib/config";
 import DB, { type Database, isNotFound } from "lib/database";
 import discord, { type DiscordClient } from "lib/discord-client";
 import microsoftTTS from "lib/microsoft-tts";
-import { buildResult, match, None, type Option, type Result, Some } from "resultant.js/rustify";
+import { buildResultAsync, match, matchAsync, None, type Option, type Result, Some } from "resultant.js/rustify";
 import type { AppConfig } from "./models";
 
 interface AppDependencies {
@@ -15,18 +15,13 @@ interface AppDependencies {
 
 const optionStateText = (option: boolean): string => (option ? "\x1b[32mtrue\x1b[0m" : "\x1b[31mfalse\x1b[0m");
 
-const initializeDatabase = async (databaseUrl: string, appConfig: AppConfig): Promise<Option<Database>> => {
+const initializeDatabase = async (databaseUrl: string): Promise<Option<Database>> => {
     if (databaseUrl === "") {
         return None();
     }
     const database = await DB.newDatabase(databaseUrl);
 
-    const result = await database.andThen(async (db) => {
-        const initResult = await db.initAppConfig(appConfig);
-        return initResult.map(() => db);
-    });
-
-    return match(result, {
+    return match(database, {
         Ok: (db) => Some(db),
         Err: ({ message }) => {
             console.error(`main: failed to connect to the database at ${databaseUrl}: ${message}`);
@@ -39,15 +34,13 @@ const initializeCache = async (redisUrl: string): Promise<Option<Cache>> => {
     if (redisUrl === "") {
         return None();
     }
-    return cache.newCache(redisUrl).then((redis) =>
-        match(redis, {
-            Ok: (r) => Some(r),
-            Err: (err) => {
-                console.error(`main: failed to connect to Redis at ${redisUrl}: ${err.message}`);
-                return None();
-            },
-        }),
-    );
+    return matchAsync(cache.newCache(redisUrl), {
+        Ok: (r) => Some(r),
+        Err: (err) => {
+            console.error(`main: failed to connect to Redis at ${redisUrl}: ${err.message}`);
+            return None();
+        },
+    });
 };
 
 const loadAppConfig = async (database: Option<Database>, rawConfig: AppConfig): Promise<AppConfig> => {
@@ -69,9 +62,9 @@ const loadAppConfig = async (database: Option<Database>, rawConfig: AppConfig): 
 };
 
 const setupAppDependencies = (): Promise<Result<AppDependencies, Error>> =>
-    buildResult(async () => {
+    buildResultAsync(async () => {
         const { appConfig: rawAppConfig, databaseUrl, redisUrl, discordToken } = Config.loadConfig();
-        const database = await initializeDatabase(databaseUrl, rawAppConfig);
+        const database = await initializeDatabase(databaseUrl);
 
         const appConfig = await loadAppConfig(database, rawAppConfig);
 
@@ -110,8 +103,8 @@ const setupAppDependencies = (): Promise<Result<AppDependencies, Error>> =>
     });
 
 const shutdownApp = async ({ database, redis, discordClient }: AppDependencies): Promise<void> => {
-    database.map((db) => db.close());
-    redis.map((r) => r.close());
+    database.mapAsync((db) => db.close());
+    redis.mapAsync((r) => r.close());
     await discordClient.destroy();
 };
 

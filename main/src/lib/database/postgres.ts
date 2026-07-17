@@ -1,6 +1,6 @@
 import { SQL } from "bun";
-import type { AppConfig, MessageTemplate, SpeechNotice } from "models";
-import { buildResult, None, type Option, type Result, Some } from "resultant.js/rustify";
+import type { AppConfig, SpeechNotice } from "models";
+import { buildResultAsync, None, type Option, type Result, Some } from "resultant.js/rustify";
 
 export class NotFoundError extends Error {
     constructor(detail?: string) {
@@ -34,21 +34,20 @@ interface AppConfigRow {
 
 interface UserSpeechNoticeRow {
     muted: boolean;
-    join_message: MessageTemplate | null;
-    leave_message: MessageTemplate | null;
+    join_message: string | null;
+    leave_message: string | null;
+    used_global: boolean;
 }
 
-// inheritGlobal is always false here — this is already the resolved notice,
-// there's nothing further for the caller to inherit from.
 const toSpeechNotice = (row: UserSpeechNoticeRow | undefined): SpeechNotice => {
     if (!row) {
         throw new NotFoundError("user config");
     }
     return {
-        inheritGlobal: false,
+        inheritGlobal: row.used_global,
         muted: row.muted,
-        joinMessage: row.join_message ?? undefined,
-        leaveMessage: row.leave_message ?? undefined,
+        joinMessage: row.join_message ? JSON.parse(row.join_message) : undefined,
+        leaveMessage: row.leave_message ? JSON.parse(row.leave_message) : undefined,
     };
 };
 
@@ -61,7 +60,7 @@ const parseSnowflake = (label: string, value: string): bigint => {
 };
 
 const newDatabase = (databaseUrl: string) =>
-    buildResult<Database>(async () => {
+    buildResultAsync<Database>(async () => {
         if (databaseUrl === "") {
             throw new Error("DB_CONNECTION_ERROR: DATABASE_URL is empty.");
         }
@@ -71,7 +70,7 @@ const newDatabase = (databaseUrl: string) =>
 
         return {
             initAppConfig: (config: AppConfig) =>
-                buildResult(async () => {
+                buildResultAsync(async () => {
                     await sql`
                         INSERT INTO app_runtime_info (id, default_join_suffix, default_leave_suffix, default_voice_model, tts_region, tts_api_key, admins)
                         VALUES (${APP_CONFIG_ROW_ID}, ${config.defaultJoinSuffix}, ${config.defaultLeaveSuffix}, ${config.defaultVoiceModel}, ${config.ttsRegion}, ${config.ttsApiKey}, ${sql.array(config.admins)})
@@ -80,7 +79,7 @@ const newDatabase = (databaseUrl: string) =>
                 }),
 
             getAppConfig: () =>
-                buildResult(async () => {
+                buildResultAsync(async () => {
                     const rows = await sql<AppConfigRow[]>`
                         SELECT default_join_suffix, default_leave_suffix, default_voice_model, tts_region, tts_api_key, admins
                         FROM app_runtime_info
@@ -89,18 +88,18 @@ const newDatabase = (databaseUrl: string) =>
                     const row = rows[0];
                     return row
                         ? Some<AppConfig>({
-                              defaultJoinSuffix: row.default_join_suffix,
-                              defaultLeaveSuffix: row.default_leave_suffix,
-                              defaultVoiceModel: row.default_voice_model,
-                              ttsRegion: row.tts_region ?? undefined,
-                              ttsApiKey: row.tts_api_key ?? undefined,
-                              admins: row.admins ?? [],
-                          })
+                            defaultJoinSuffix: row.default_join_suffix,
+                            defaultLeaveSuffix: row.default_leave_suffix,
+                            defaultVoiceModel: row.default_voice_model,
+                            ttsRegion: row.tts_region ?? undefined,
+                            ttsApiKey: row.tts_api_key ?? undefined,
+                            admins: row.admins ?? [],
+                        })
                         : None<AppConfig>();
                 }),
 
             setAppConfig: (config: AppConfig) =>
-                buildResult(async () => {
+                buildResultAsync(async () => {
                     await sql`
                         UPDATE app_runtime_info
                         SET default_join_suffix = ${config.defaultJoinSuffix},
@@ -114,7 +113,7 @@ const newDatabase = (databaseUrl: string) =>
                 }),
 
             getUserSpeechNotice: (userId, guildId) =>
-                buildResult(async () => {
+                buildResultAsync(async () => {
                     const uid = parseSnowflake("user id", userId);
                     const gid = parseSnowflake("guild id", guildId);
 
@@ -125,7 +124,8 @@ const newDatabase = (databaseUrl: string) =>
                                 false
                             ) AS muted,
                             CASE WHEN guild_sn.id IS NOT NULL AND NOT guild_sn.inherit_global THEN guild_sn.join_message ELSE global_sn.join_message END AS join_message,
-                            CASE WHEN guild_sn.id IS NOT NULL AND NOT guild_sn.inherit_global THEN guild_sn.leave_message ELSE global_sn.leave_message END AS leave_message
+                            CASE WHEN guild_sn.id IS NOT NULL AND NOT guild_sn.inherit_global THEN guild_sn.leave_message ELSE global_sn.leave_message END AS leave_message,
+                            (guild_sn.id IS NULL OR guild_sn.inherit_global) AS used_global
                         FROM user_configs uc
                         LEFT JOIN user_guild_notices ugn ON ugn.user_config_id = uc.id AND ugn.guild_id = ${gid}
                         LEFT JOIN speech_notices guild_sn ON guild_sn.id = ugn.speech_notice_id
