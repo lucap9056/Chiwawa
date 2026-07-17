@@ -1,0 +1,49 @@
+$text-color: #321e18;
+$title-color: #ffd0ae;
+
+.block {
+    .title {
+        position: relative;
+        line-height: 1.75rem;
+        background-color: $title-color;
+        color: $text-color;
+        font-weight: bold;
+        padding: 0 0.9375rem;
+        font-size: 1rem;
+        border-radius: 0.1875rem;
+        cursor: default;
+        user-select: none;
+    }
+
+    .content {
+        overflow: hidden;
+
+        &[data-state="open"] {
+            animation: slideDown 300ms ease-out;
+        }
+
+        &[data-state="closed"] {
+            animation: slideUp 300ms ease-out;
+        }
+    }
+}
+
+@keyframes slideDown {
+    from {
+        height: 0;
+    }
+
+    to {
+        height: var(--radix-collapsible-content-height);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        height: var(--radix-collapsible-content-height);
+    }
+
+    to {
+        height: 0;
+    }
+}
