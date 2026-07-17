@@ -1,4 +1,46 @@
 services:
+  main:
+    build:
+      context: ./amin
+      dockerfile: ./docker/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      APP_DISCORD_TOKEN: ${APP_DISCORD_TOKEN}
+      DEFAULT_JOIN_SUFFIX: ${DEFAULT_JOIN_SUFFIX}
+      DEFAULT_LEAVE_SUFFIX: ${DEFAULT_LEAVE_SUFFIX}
+      DEFAULT_VOICE_MODEL: ${DEFAULT_VOICE_MODEL}
+      TTS_REGION: ${TTS_REGION}
+      TTS_APIKEY: ${TTS_APIKEY}
+      ADMINS: ${ADMINS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: ./docker/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      DEFAULT_JOIN_SUFFIX: ${DEFAULT_JOIN_SUFFIX}
+      DEFAULT_LEAVE_SUFFIX: ${DEFAULT_LEAVE_SUFFIX}
+      DEFAULT_VOICE_MODEL: ${DEFAULT_VOICE_MODEL}
+      TTS_REGION: ${TTS_REGION}
+      TTS_APIKEY: ${TTS_APIKEY}
+      CLIENT_ID: ${CLIENT_ID}
+      CLIENT_SECRET: ${CLIENT_SECRET}
+      REDIRECT_URI: ${REDIRECT_URI}
+      ADMINS: ${ADMINS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   postgres:
     image: postgres:16-alpine
     environment:
