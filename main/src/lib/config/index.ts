@@ -14,7 +14,7 @@ const loadConfig = (): RuntimeConfig => {
             defaultLeaveSuffix: process.env.DEFAULT_LEAVE_SUFFIX || "",
             defaultVoiceModel: process.env.DEFAULT_VOICE_MODEL || "",
             ttsRegion: process.env.TTS_REGION || "",
-            ttsApiKey: process.env.TTS_API_KEY || "",
+            ttsApiKey: process.env.TTS_APIKEY || "",
             admins: (process.env.ADMINS || "").split(/,/),
         },
         //
