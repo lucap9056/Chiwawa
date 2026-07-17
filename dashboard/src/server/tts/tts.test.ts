@@ -5,7 +5,7 @@ import { createFakeState, fakeSession } from "#/server/test/fakes";
 
 vi.mock("#/services", () => ({ state: {} }));
 
-import { getAccessTokenHandler } from "./index";
+import { getAccessTokenHandler } from "./handlers";
 
 describe("getAccessTokenHandler", () => {
     it("returns TTS_NO_GUILD_ACCESS when the session has no guilds", async () => {

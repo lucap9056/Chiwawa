@@ -31,13 +31,14 @@ describe("services/microsoft-tts", () => {
             });
         });
 
-        it("passes the subscription key header to the correct regional endpoint", async () => {
+        it("passes the subscription key header to the correct regional endpoint via POST", async () => {
             fetchMock.mockResolvedValueOnce(new Response("t"));
 
             await fetchIssueToken(Date.now(), REGION, API_KEY);
 
             const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
             expect(url).toBe(`https://${REGION}.api.cognitive.microsoft.com/sts/v1.0/issueToken`);
+            expect(init.method).toBe("POST");
             const headers = init.headers as Record<string, string>;
             expect(headers["Ocp-Apim-Subscription-Key"]).toBe(API_KEY);
         });
@@ -58,6 +59,17 @@ describe("services/microsoft-tts", () => {
 
             expect(result.isErr()).toBe(true);
             expect(result.unwrapErr().message).toBe("Failed to issue TTS token.");
+        });
+
+        it("returns Err instead of treating a non-2xx response body as a token", async () => {
+            fetchMock.mockResolvedValueOnce(
+                new Response('{"error":{"code":"404","message":"Resource not found"}}', { status: 404 }),
+            );
+
+            const result = await fetchIssueToken(Date.now(), REGION, API_KEY);
+
+            expect(result.isErr()).toBe(true);
+            expect(result.unwrapErr().message).toContain("404");
         });
     });
 
@@ -134,6 +146,68 @@ describe("services/microsoft-tts", () => {
 
             expect(fetchMock).toHaveBeenCalledTimes(1);
             expect(second.token).toBe("");
+        });
+    });
+
+    describe("initializeTTS / getLanguages", () => {
+        const voiceListResponse = () =>
+            new Response(
+                JSON.stringify([
+                    { Locale: "en-US", LocalName: "Jenny", DisplayName: "Jenny", ShortName: "en-US-JennyNeural" },
+                    { Locale: "en-US", LocalName: "Guy", DisplayName: "Guy", ShortName: "en-US-GuyNeural" },
+                ]),
+            );
+
+        it("fetches a token then the voice catalog on first call, grouped by locale", async () => {
+            fetchMock.mockResolvedValueOnce(new Response("t1")).mockResolvedValueOnce(voiceListResponse());
+            const tts = initializeTTS(REGION, API_KEY);
+
+            const languages = await tts.getLanguages();
+
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+            expect(Object.keys(languages["en-US"])).toEqual(["Jenny", "Guy"]);
+        });
+
+        // No TTL, mirroring main: the catalog is cached for this TTSMessage's whole
+        // lifetime and only refreshed when updateTTS() rebuilds it from scratch.
+        it("caches the catalog indefinitely — no re-fetch on later calls", async () => {
+            fetchMock.mockResolvedValueOnce(new Response("t1")).mockResolvedValueOnce(voiceListResponse());
+            const tts = initializeTTS(REGION, API_KEY);
+
+            await tts.getLanguages();
+            await tts.getLanguages();
+
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+        });
+
+        it("dedupes concurrent first calls into a single fetch", async () => {
+            fetchMock.mockResolvedValueOnce(new Response("t1")).mockResolvedValueOnce(voiceListResponse());
+            const tts = initializeTTS(REGION, API_KEY);
+
+            const [a, b] = await Promise.all([tts.getLanguages(), tts.getLanguages()]);
+
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+            expect(a).toBe(b);
+        });
+
+        it("never calls fetch when region/apiKey are empty", async () => {
+            const tts = initializeTTS("", "");
+
+            const languages = await tts.getLanguages();
+
+            expect(fetchMock).not.toHaveBeenCalled();
+            expect(languages.default.default.ShortName).toBe("en-US-JennyNeural");
+        });
+
+        it("falls back to the default catalog when the voices fetch fails", async () => {
+            fetchMock
+                .mockResolvedValueOnce(new Response("t1"))
+                .mockResolvedValueOnce(new Response("nope", { status: 500 }));
+            const tts = initializeTTS(REGION, API_KEY);
+
+            const languages = await tts.getLanguages();
+
+            expect(languages.default.default.ShortName).toBe("en-US-JennyNeural");
         });
     });
 });
