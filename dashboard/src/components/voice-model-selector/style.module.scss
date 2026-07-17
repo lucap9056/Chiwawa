@@ -1,0 +1,82 @@
+$selector-bg-color: #6b4537;
+$language-bg-color: #e0775f;
+$voice-bg-color: #c0533a;
+$select-menu-bg-color: #e3b98c;
+$select-menu-text-color: #321e18;
+$select-menu-hover-color: #c39667;
+
+.selector {
+    width: 15rem;
+    background-color: $selector-bg-color;
+    display: flex;
+    flex-flow: row;
+    gap: 0.625rem;
+    align-items: center;
+    padding: 0.3125rem 0.625rem;
+    border-radius: 0.3125rem;
+    margin: 0 auto;
+
+    .language {
+        padding: 0 0.3125rem;
+        background-color: $language-bg-color;
+        font-size: 0.875rem;
+        height: 1.25rem;
+        line-height: 1.25rem;
+        border-radius: 0.3125rem;
+        border: none;
+        color: inherit;
+        user-select: none;
+        cursor: pointer;
+    }
+
+    .voice {
+        flex: 1;
+        padding: 0 0.3125rem;
+        background-color: $voice-bg-color;
+        font-size: 0.875rem;
+        height: 1.25rem;
+        line-height: 1.25rem;
+        border-radius: 0.3125rem;
+        border: none;
+        color: inherit;
+        user-select: none;
+        cursor: pointer;
+    }
+
+    .play {
+        display: flex;
+        width: 1.25rem;
+        height: 1.25rem;
+        justify-content: center;
+        align-items: center;
+        color: inherit;
+        cursor: pointer;
+
+        svg {
+            width: 1rem;
+            height: 1rem;
+        }
+    }
+}
+
+.select_content {
+    background-color: $select-menu-bg-color;
+    color: $select-menu-text-color;
+    font-weight: bold;
+    padding: 0.3125rem 0;
+    max-height: 50vh;
+    overflow-y: auto;
+    border-radius: 0.3125rem;
+    z-index: 10;
+}
+
+.select_item {
+    padding: 0.125rem 0.3125rem;
+    user-select: none;
+    cursor: pointer;
+    outline: none;
+
+    &[data-highlighted] {
+        background-color: $select-menu-hover-color;
+    }
+}
