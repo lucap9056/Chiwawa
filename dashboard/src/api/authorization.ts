@@ -1,11 +1,6 @@
 import { buildResultAsync, Err, Ok, type Result } from "resultant.js/rustify";
 import { ErrorCode } from "#/errors";
-import {
-    generateCodeVerifier,
-    getLoginUrl as getLoginUrlFn,
-    login as loginFn,
-    logout as logoutFn,
-} from "#/server/authorization";
+import { getLoginUrl as getLoginUrlFn, login as loginFn, logout as logoutFn } from "#/server/authorization";
 import { fetchFn } from "./lib";
 
 const base64urlEncode = (arrayBuffer: ArrayBuffer) => {
@@ -73,6 +68,9 @@ const popAuthWindow = (url: string, state: string): Promise<Result<string, Error
     window.addEventListener("message", handler);
     return promise;
 };
+
+const generateCodeVerifier = () =>
+    crypto.getRandomValues(new Uint8Array(32)).toBase64({ alphabet: "base64url" }).replace(/=$/, "");
 
 const generateCodeChallengePair = async (): Promise<{ codeVerifier: string; codeChallenge: string }> => {
     const codeVerifier = generateCodeVerifier();

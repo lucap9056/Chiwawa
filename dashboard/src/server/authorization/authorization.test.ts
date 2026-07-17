@@ -19,10 +19,10 @@ vi.mock("@tanstack/react-start/server", () => ({
 
 vi.mock("#/services", () => ({ state: {} }));
 
-import { codeChallengeSchema, getLoginUrlHandler, loginHandler, logoutHandler } from "./index";
+import { codeChallengeSchema, getLoginUrlHandler, loginHandler, logoutHandler } from "./handlers";
 
 const VALID_CODE_CHALLENGE = "a".repeat(43);
-const VALID_STATE = "b".repeat(36);
+const VALID_STATE = "b".repeat(22);
 const VALID_CODE_VERIFIER = "c".repeat(43);
 
 describe("server/authorization", () => {
@@ -36,8 +36,8 @@ describe("server/authorization", () => {
         vi.unstubAllGlobals();
     });
 
-    describe("codeChallengeSchema (TanStack .validator())", () => {
-        it("rejects a code_challenge of the wrong length or charset instead of going through Result/ErrorCode", () => {
+    describe("codeChallengeSchema (detail validation, checked inside the handler)", () => {
+        it("rejects a code_challenge of the wrong length or charset", () => {
             expect(codeChallengeSchema.safeParse(VALID_CODE_CHALLENGE).success).toBe(true);
             expect(codeChallengeSchema.safeParse("too-short").success).toBe(false);
             expect(codeChallengeSchema.safeParse(`!${"a".repeat(42)}`).success).toBe(false);
@@ -58,9 +58,34 @@ describe("server/authorization", () => {
             const oauth2State = cookies.get("state") as string;
             expect(state.oauth2Provider.getAuthorizeUrl).toHaveBeenCalledWith(oauth2State, VALID_CODE_CHALLENGE);
         });
+
+        it("returns VALIDATION_FAILED for a type-valid but out-of-spec codeChallenge", async () => {
+            const state = createFakeState();
+
+            const message = await getLoginUrlHandler({
+                context: { state },
+                data: { codeChallenge: "too-short" },
+            });
+
+            expect(message).toEqual({ success: false, error: ErrorCode.VALIDATION_FAILED });
+            expect(state.oauth2Provider.getAuthorizeUrl).not.toHaveBeenCalled();
+        });
     });
 
     describe("loginHandler", () => {
+        it("returns VALIDATION_FAILED for a type-valid but out-of-spec codeVerifier", async () => {
+            cookies.set("state", VALID_STATE);
+            const state = createFakeState();
+
+            const message = await loginHandler({
+                context: { state },
+                data: { oauth2Code: "auth-code-1234567", oauth2State: VALID_STATE, codeVerifier: "too-short" },
+            });
+
+            expect(message).toEqual({ success: false, error: ErrorCode.VALIDATION_FAILED });
+            expect(state.oauth2Provider.base).not.toHaveBeenCalled();
+        });
+
         it("returns AUTH_STATE_COOKIE_MISSING when there is no state cookie", async () => {
             const state = createFakeState();
 
