@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import type { DiscordLoginResult } from "#/api/authorization";
 
 export const Route = createFileRoute("/login")({ component: Login });
 
-function Login() {
+function Content() {
     useEffect(() => {
         const parentWindow: Window = window.opener;
 
@@ -23,9 +23,18 @@ function Login() {
                 : { success, error, state, name };
 
             parentWindow.postMessage(result, window.location.origin);
-        }
-        else {
-            window.location.replace(location.origin);
+        } else {
+            window.location.replace(import.meta.env.BASE_URL);
         }
     }, []);
+
+    return null;
+}
+
+function Login() {
+    return (
+        <ClientOnly>
+            <Content />
+        </ClientOnly>
+    );
 }

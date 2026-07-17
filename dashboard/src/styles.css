@@ -28,7 +28,12 @@ body {
 
 
 button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: inherit;
   font-family: var(--font-poetsen-one);
+  cursor: pointer;
 }
 
 button:hover {

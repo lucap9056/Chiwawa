@@ -1,0 +1,28 @@
+$option-color: #edcca8;
+$option-hover-color: #cea981;
+$option-active-color: #b58e65;
+$option-text-color: #432b1f;
+
+.retry {
+    display: block;
+    margin: 2rem auto;
+    background-color: $option-color;
+    border-radius: 0.1875rem;
+    padding: 0.3125rem 0.9375rem;
+    font-size: 1rem;
+    color: $option-text-color;
+    transition-duration: 50ms;
+
+    &:hover {
+        background-color: $option-hover-color;
+    }
+
+    &:active {
+        background-color: $option-active-color;
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+}

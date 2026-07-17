@@ -1,7 +1,5 @@
-import { Toaster } from "Sonner";
-import { ClientOnly, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
-import { LoaderProvider } from "#/components/global/loader";
-import { ProfileProvider } from "#/components/global/profile";
+import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import "#/i18n";
 import appCss from "#/styles.css?url";
 
 export const Route = createRootRoute({
@@ -23,6 +21,10 @@ export const Route = createRootRoute({
                 rel: "stylesheet",
                 href: appCss,
             },
+            {
+                rel: "icon",
+                href: `${import.meta.env.BASE_URL}favicon.ico`,
+            },
         ],
     }),
     shellComponent: RootDocument,
@@ -35,13 +37,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                 <HeadContent />
             </head>
             <body>
-                <ClientOnly>
-                    <LoaderProvider>
-                        <ProfileProvider>{children}</ProfileProvider>
-                        <Toaster position="bottom-left" richColors />
-                    </LoaderProvider>
-                    <Scripts />
-                </ClientOnly>
+                {children}
+                <Scripts />
             </body>
         </html>
     );

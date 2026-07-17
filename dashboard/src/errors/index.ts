@@ -69,6 +69,18 @@ export const ErrorCode = {
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
+const UNAUTHENTICATED_ERROR_CODES = new Set<ErrorCode>([
+    ErrorCode.SESSION_COOKIE_MISSING,
+    ErrorCode.SESSION_COOKIE_READ_FAILED,
+    ErrorCode.SESSION_STORE_READ_FAILED,
+    ErrorCode.SESSION_NOT_FOUND,
+    ErrorCode.SESSION_EXPIRED,
+    ErrorCode.SESSION_DELETE_FAILED,
+    ErrorCode.SESSION_COOKIE_DELETE_FAILED,
+]);
+
+export const isUnauthenticated = (code: ErrorCode): boolean => UNAUTHENTICATED_ERROR_CODES.has(code);
+
 export const networkError = (err: unknown): ErrorCode => {
     if (err instanceof DOMException && err.name === "AbortError") {
         return ErrorCode.NETWORK_ABORTED;
