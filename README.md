@@ -6,8 +6,7 @@ Chiwawa is a Discord bot that sends **voice notifications** when users **join** 
 
 This project is a monorepo containing the following components:
 - **`/main`**: The core Discord bot that handles voice notifications.
-- **`/commands`**: A service for deploying Discord slash commands.
-- **`/web-dashboard`**: A Next.js web application for managing the bot and user settings.
+- **`/dashboard`**: A TanStack Start web application for managing the bot and user settings.
 
 ---
 ## Key Features
@@ -15,21 +14,22 @@ This project is a monorepo containing the following components:
 - **Voice Notifications**: Automatically plays a voice message when a user joins or leaves a voice channel.
 - **Customizable Messages**:
 	- Admins can set default notification suffixes for join and leave events.
-	- Users can customize their own message format (prefix, username, suffix) or mute the notifications via the web dashboard.
+	- Users can customize their own message format (prefix, username, suffix) or mute the notifications via the web dashboard, either globally or per server.
 - **Web Dashboard**: A user-friendly interface to manage bot settings, user preferences, and more.
 - **Microsoft TTS Integration**: Uses Microsoft TTS for voice notifications, configurable with different languages and regions.
 - **Configurable**: Settings are managed through environment variables, with a clear separation of concerns between the different services.
 - **Admin Controls**: Admins have the ability to modify global bot settings.
-- **User Personalization**: Users can personalize how notifications sound when they join or leave a voice channel.
+- **User Personalization**: Users can personalize how notifications sound when they join or leave a voice channel, per server if they wish.
 
 ---
 ## Architecture
 
-The project is structured as a monorepo with three main services:
+The project is structured as a monorepo with two main services, backed by Postgres and Redis:
 
-- **`main`**: The core of the bot. This service connects to Discord, listens for voice state updates (users joining/leaving channels), and uses Microsoft TTS to generate and play voice notifications. It also provides the backend API for the web dashboard.
-- **`commands`**: A separate service responsible for registering and updating the bot's slash commands with Discord.
-- **`web-dashboard`**: A Next.js application that provides a web-based graphical user interface for administrators and users to configure the bot's settings and their personal notification preferences.
+- **`main`**: The core of the bot. This service connects to Discord, listens for voice state updates (users joining/leaving channels), and uses Microsoft TTS to generate and play voice notifications. It reads/writes app config and user settings from Postgres and uses Redis for caching resolved speech and coordinating with the dashboard.
+- **`dashboard`**: A TanStack Start (React) application that provides both a web-based graphical user interface and its backend API, for administrators and users to configure the bot's settings and their personal notification preferences.
+- **`postgres`**: Stores app config and per-user/per-guild notification settings.
+- **`redis`**: Caches resolved TTS speech per user/guild and coordinates guild-membership/config updates between `main` and `dashboard`.
 
 All services are written in TypeScript and are configured to work together.
 
@@ -38,17 +38,14 @@ All services are written in TypeScript and are configured to work together.
 
 The services can be run in different combinations depending on your needs. You can modify the `docker-compose.yml` file to run only the services you require.
 
--   **`main` + `commands` + `web-dashboard` + `mongodb` (Full Experience)**
-    -   Provides all features: voice notifications, slash commands for interaction, and a web dashboard for easy configuration.
+-   **`main` + `dashboard` + `postgres` + `redis` (Full Experience)**
+    -   Provides all features: voice notifications and a web dashboard for easy configuration of global and per-user/per-guild settings.
 
--   **`main` + `web-dashboard` + `mongodb` (Web Managed)**
-    -   Runs the core bot with a web dashboard for configuration. Slash commands will not be available.
+-   **`main` + `postgres` + `redis` (Bot Only, No Dashboard)**
+    -   Runs the core bot with persisted settings, but without a way to change them through a UI (useful if you run the dashboard elsewhere, or manage settings directly in Postgres).
 
--   **`main` + `commands` + `mongodb` (Headless)**
-    -   Runs the core bot with slash command support, but without the web dashboard. Configuration must be managed entirely through environment variables.
-
--   **`main` only (Core Functionality)**
-    -   Runs only the core voice notification bot without database support. Slash commands and the web dashboard will be unavailable. When running without MongoDB or if a user has no custom settings, messages will be generated using the bot's default suffixes (configured via environment variables) and the user's display name. User-specific customizations will not be saved. (See "Nickname Formatting for Voice Customization" below for advanced options without a database.)
+-   **`main` only (Core Functionality, No Database)**
+    -   Runs only the core voice notification bot without database support. The dashboard will be unavailable. When running without Postgres/Redis or if a user has no custom settings, messages will be generated using the bot's default suffixes (configured via environment variables) and the user's display name. User-specific customizations will not be saved. (See "Nickname Formatting for Voice Customization" below for advanced options without a database.)
 
 ---
 ## Nickname Formatting for Voice Customization
@@ -69,7 +66,7 @@ When the bot is running without a database or when a user has no personalized se
     -   **`[voice_model]`**: The specific voice model to use (e.g., `JennyNeural`, `HsiaoChenNeural`).
 -   **`.` (Optional)**: Add a period at the very end of your nickname to remove the default join/leave suffix (e.g., "joined the channel").
 
-This allows for basic voice customization even without a MongoDB connection or individual user settings.
+This allows for basic voice customization even without a database connection or individual user settings.
 
 
 ---
@@ -77,97 +74,110 @@ This allows for basic voice customization even without a MongoDB connection or i
 
 Before you begin, ensure you have the following installed and configured:
 
-1.  **Docker** and **Docker Compose**: For running the services and MongoDB instance.
+1.  **Docker** and **Docker Compose**: For running the services along with Postgres and Redis.
 2.  **Discord Bot Token**: Obtain it from the [Discord Developer Portal](https://discord.com/developers/applications).
-3.  **Microsoft TTS Token**: Set up a TTS resource on [Microsoft Azure](https://azure.microsoft.com/) to enable text-to-speech capabilities.
+3.  **Discord OAuth2 Credentials** (Client ID/Secret): Required only if you're running the `dashboard` service, for Discord login.
+4.  **Microsoft TTS Token**: Set up a TTS resource on [Microsoft Azure](https://azure.microsoft.com/) to enable text-to-speech capabilities.
 
 ---
 ## Deployment with Docker Compose (Recommended)
 
-The easiest way to get Chiwawa running is by using the provided `docker-compose.yml` file, which utilizes pre-built Docker images for each service (`main`, `commands`, `web-dashboard`) and a MongoDB database.
+The easiest way to get Chiwawa running is by using the provided `docker-compose.yml` file, which builds the `main` and `dashboard` images locally from their Dockerfiles and runs them alongside Postgres and Redis.
 
-1.  **Configure Environment Variables for Docker Compose**
-    Create a `.env` file in the root directory of the project. This `.env` file will be used by `docker-compose` to pass environment variables to each service.
+1.  **Generate the shared models**
+    Both `main` and `dashboard` import generated TypeScript types from `proto/v1/models.proto` (`src/models/models.ts`), but that file is gitignored and isn't produced automatically by their Dockerfiles (each service's build context doesn't include the sibling `proto/` directory). Run this in **both** `main/` and `dashboard/` before building:
+    ```bash
+    bun run proto:compile
+    ```
+    Re-run it in a service whenever `proto/v1/models.proto` changes, and before every `docker compose build`/`up --build`.
 
-    Refer to the **Configuration** section below for the full list of environment variables. Here's an example of a `.env` file that you would place in the project root:
+2.  **Configure Environment Variables for Docker Compose**
+    Create a `.env` file in the root directory of the project (see `.env.example` for a template). This `.env` file will be used by `docker-compose` to pass environment variables to each service.
 
     ```env
-    # Discord Bot Token
+    # Postgres (used by main and dashboard)
+    POSTGRES_USER=chiwawa
+    POSTGRES_PASSWORD=your_secure_password
+    POSTGRES_DB=chiwawa
+
+    # Connection URLs (postgres/redis are the service names on the compose network)
+    DATABASE_URL=postgres://chiwawa:your_secure_password@postgres:5432/chiwawa
+    REDIS_URL=redis://redis:6379
+
+    # Discord Bot Token (main)
     APP_DISCORD_TOKEN=YOUR_DISCORD_BOT_TOKEN
-    APPLICATION_ID=YOUR_DISCORD_APPLICATION_ID # Client ID for your Discord Application
-    GUILD_ID=YOUR_DISCORD_GUILD_ID # Server ID for commands deployment (optional, for testing)
 
-    # Microsoft TTS Configuration
+    # Default voice notification settings (main + dashboard)
+    DEFAULT_JOIN_SUFFIX=joined the channel
+    DEFAULT_LEAVE_SUFFIX=left the channel
+    DEFAULT_VOICE_MODEL=en-US-JennyNeural
+
+    # Microsoft TTS Configuration (main + dashboard)
     TTS_REGION=YOUR_TTS_REGION
-    TTS_API_KEY=YOUR_TTS_API_KEY
-    TTS_DEFAULT_VOICE_MODULE=en-US # Example: en-US
-
-    # MongoDB Configuration (used by main and web-dashboard)
-    MONGO_ROOT_USERNAME=chiwawa-user
-    MONGO_ROOT_PASSWORD=your_secure_password
-    MONGO_DATABASE=chiwawa_db
-    DATABASE_URL=mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${MONGO_DATABASE}?authSource=admin
+    TTS_APIKEY=YOUR_TTS_API_KEY
 
     # Admin User IDs (comma-separated)
     ADMINS=YOUR_ADMIN_USER_ID_1,YOUR_ADMIN_USER_ID_2
 
-    # API and OAuth2 Configuration (for web-dashboard)
-    CLIENT_ID=YOUR_DISCORD_APPLICATION_CLIENT_ID # Same as APPLICATION_ID
+    # Discord OAuth2 Configuration (dashboard only)
+    CLIENT_ID=YOUR_DISCORD_APPLICATION_CLIENT_ID
     CLIENT_SECRET=YOUR_DISCORD_APPLICATION_CLIENT_SECRET
-    REDIRECT_URI=http://localhost/api/oauth2/callback # Or your deployed URL
-    API_SESSION_SECRET=YOUR_RANDOM_SESSION_SECRET
+    REDIRECT_URI=http://localhost/callback # Must match the redirect registered on Discord
     ```
-    **Important**: Ensure that `TTS_API_KEY` in your `.env` matches the `TTS_TOKEN` mentioned in the `main` service configuration table.
 
-2.  **Run with Docker Compose**
+    `docker-compose.yml` does not publish a host port for the `dashboard` service by default (only Postgres and Redis are). Add a `ports:` entry under `dashboard` (e.g. `"80:3000"`) if you want to reach it from outside the compose network.
+
+3.  **Run with Docker Compose**
     ```bash
-    docker-compose up -d
+    docker compose up -d --build
     ```
     This command will:
-    - Pull the `lucap9056/chiwawa`, `lucap9056/chiwawa-commands`, and `lucap9056/chiwawa-dashboard` Docker images.
-    - Start the `main` bot, `commands` service, `web-dashboard`, and a MongoDB instance.
-    - The `commands` service will automatically deploy Discord commands on startup.
-    - The web dashboard will be accessible via `http://localhost`.
+    - Build the `main` and `dashboard` images from their local Dockerfiles.
+    - Start Postgres (seeded from `proto/v1/init.sql` on first run) and Redis.
+    - Start the `main` bot and the `dashboard`, once Postgres and Redis report healthy.
 
 ---
 ## Configuration
 
-Configuration is handled via environment variables. The following tables detail the variables for each service.
+Configuration is handled via environment variables.
+
+### Postgres
+
+| **Environment Variable** | **Purpose**                          |
+| ------------------------- | ------------------------------------ |
+| `POSTGRES_USER`            | Postgres username.                    |
+| `POSTGRES_PASSWORD`        | Postgres password.                    |
+| `POSTGRES_DB`              | Postgres database name.               |
 
 ### `main` Service
 
-| **Environment Variable**   | **Purpose**                                               | **Default Value**         |
-| -------------------------- | --------------------------------------------------------- | ------------------------- |
-| `ADMINS`                   | Comma-separated list of admin user IDs.                   | `""`                      |
-| `APP_DISCORD_TOKEN`        | Discord bot token.                                        | `""`                      |
-| `DEFAULT_JOIN_SUFFIX`      | Suffix for the join message.                              | `"joined the channel"`    |
-| `DEFAULT_LEAVE_SUFFIX`     | Suffix for the leave message.                             | `"left the channel"`      |
-| `TTS_REGION`               | Region for Microsoft TTS API.                             | `""`                      |
-| `TTS_API_KEY`              | Microsoft TTS API token.                                  | `""`                      |
-| `TTS_DEFAULT_LANGUAGE`     | Default language for the TTS engine.                      | `"en-US"`                 |
-| `DATABASE_URI`             | MongoDB connection URI.                                   | `""`                      |
-| `API_PORT`                 | Port for the backend API service.                         | `"80"`                    |
-| `API_REDIRECT_URI`         | Redirect URI for OAuth2 authentication.                   | `""`                      |
-| `API_SESSION_SECRET`       | Secret for API session management.                        | `""`                      |
-| `APP_ID`                   | OAuth2 application client ID.                             | `""`                      |
-| `APP_SECRET`               | OAuth2 application client secret.                         | `""`                      |
+| **Environment Variable**   | **Purpose**                                                | **Default** |
+| --------------------------- | ----------------------------------------------------------- | ----------- |
+| `APP_DISCORD_TOKEN`         | Discord bot token.                                           | `""`        |
+| `DATABASE_URL`              | Postgres connection URL.                                     | `""`        |
+| `REDIS_URL`                 | Redis connection URL.                                        | `""`        |
+| `DEFAULT_JOIN_SUFFIX`       | Fallback suffix appended to the join message.                | `""`        |
+| `DEFAULT_LEAVE_SUFFIX`      | Fallback suffix appended to the leave message.               | `""`        |
+| `DEFAULT_VOICE_MODEL`       | Fallback Microsoft TTS voice model.                          | `""`        |
+| `TTS_REGION`                | Region for the Microsoft TTS API.                            | `""`        |
+| `TTS_APIKEY`                | Microsoft TTS API key.                                       | `""`        |
+| `ADMINS`                    | Comma-separated Discord user IDs, bootstraps the initial admins if no app config exists yet in Postgres. | `""` |
 
-### `commands` Service
+### `dashboard` Service
 
-| **Environment Variable** | **Purpose**                  | **Default Value** |
-| ------------------------ | ---------------------------- | ----------------- |
-| `APP_DISCORD_TOKEN`      | Discord bot token.           | `""`              |
-| `APPLICATION_ID`         | Discord application client ID. | `""`              |
-| `GUILD_ID`               | Discord Server ID for testing. | `""`              |
+| **Environment Variable**   | **Purpose**                                                                   | **Default** |
+| --------------------------- | ------------------------------------------------------------------------------ | ----------- |
+| `DATABASE_URL`              | Postgres connection URL. **Required.**                                         | —           |
+| `REDIS_URL`                 | Redis connection URL. **Required.**                                            | —           |
+| `CLIENT_ID`                 | Discord application client ID, used to build the OAuth2 login URL. **Required.** | —          |
+| `CLIENT_SECRET`             | Discord application client secret, used to exchange/refresh OAuth2 tokens. **Required.** | —    |
+| `REDIRECT_URI`              | Discord OAuth2 redirect URI; must match the callback registered on Discord. **Required.** | —    |
+| `ADMINS`                    | Comma-separated Discord user IDs, bootstraps the initial admins if no app config exists yet in Postgres. **Required.** | — |
+| `DEFAULT_JOIN_SUFFIX`       | Fallback suffix shown/used when no app config exists yet.                       | `""`        |
+| `DEFAULT_LEAVE_SUFFIX`      | Fallback suffix shown/used when no app config exists yet.                       | `""`        |
+| `DEFAULT_VOICE_MODEL`       | Fallback voice model shown/used when no app config exists yet.                  | `""`        |
+| `TTS_REGION`                | Fallback Microsoft TTS region shown/used when no app config exists yet.         | `""`        |
+| `TTS_APIKEY`                | Fallback Microsoft TTS API key shown/used when no app config exists yet.        | `""`        |
+| `BASE_PATH`                 | Mount the dashboard under a sub-path (e.g. `/dashboard/`) instead of `/`.        | `"/"`       |
 
-### `web-dashboard` Service
-
-| **Environment Variable** | **Purpose**                      | **Default Value** |
-| ------------------------ | -------------------------------- | ----------------- |
-| `ADMINS`                 | Comma-separated list of admin user IDs. | `""`              |
-| `DATABASE_URI`           | MongoDB connection URI.          | `""`              |
-
----
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](./main/LICENSE) file for details.
+The `dashboard`'s `REQUIRED` variables above cause it to fail fast on startup if missing; the rest only seed the app config the first time it's created (an admin can change them afterwards from the dashboard itself).
