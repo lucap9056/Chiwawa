@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [main, dashboard]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve current and previous tag
+        id: tags
+        run: |
+          CURRENT_TAG="${GITHUB_REF_NAME}"
+          PREVIOUS_TAG=$(git tag --list 'v*.*.*' --sort=-v:refname | grep -v "^${CURRENT_TAG}$" | head -n1)
+          echo "current=${CURRENT_TAG}" >> "$GITHUB_OUTPUT"
+          echo "previous=${PREVIOUS_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Normalize registry owner
+        id: owner
+        run: echo "name=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether this service changed since the previous tag
+        id: changes
+        run: |
+          SHARED_PATHS="proto scripts/sync-proto.sh scripts/sync-proto.bat .dockerignore"
+          PREVIOUS_TAG="${{ steps.tags.outputs.previous }}"
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$PREVIOUS_TAG" "${{ steps.tags.outputs.current }}" -- $SHARED_PATHS "${{ matrix.service }}"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          sh scripts/docker/${{ matrix.service }}.sh \
+            ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current }} \
+            ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:latest
+
+      - name: Push image
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          docker push ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current }}
+          docker push ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:latest
+
+      - name: Retag previous image (no changes for this service)
+        if: steps.changes.outputs.changed == 'false'
+        run: |
+          docker buildx imagetools create \
+            -t ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current }} \
+            ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.previous }}

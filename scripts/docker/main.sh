@@ -3,4 +3,13 @@ set -e
 
 cd "$(dirname "$0")/../.."
 
-docker build -f main/docker/Dockerfile -t chiwawa-main .
+if [ "$#" -eq 0 ]; then
+  set -- chiwawa-main
+fi
+
+TAG_ARGS=""
+for tag in "$@"; do
+  TAG_ARGS="$TAG_ARGS -t $tag"
+done
+
+docker build -f main/docker/Dockerfile $TAG_ARGS .
