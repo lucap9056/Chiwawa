@@ -26,7 +26,12 @@ jobs:
         run: |
           CURRENT_TAG="${GITHUB_REF_NAME}"
           PREVIOUS_TAG=$(git tag --list 'v*.*.*' --sort=-v:refname | grep -v "^${CURRENT_TAG}$" | head -n1)
+          NO_V="${CURRENT_TAG#v}"
+          MAJOR_MINOR="${NO_V%.*}"
           echo "current=${CURRENT_TAG}" >> "$GITHUB_OUTPUT"
+          echo "current_no_v=${NO_V}" >> "$GITHUB_OUTPUT"
+          echo "current_major_minor=v${MAJOR_MINOR}" >> "$GITHUB_OUTPUT"
+          echo "current_major_minor_no_v=${MAJOR_MINOR}" >> "$GITHUB_OUTPUT"
           echo "previous=${PREVIOUS_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Normalize registry owner
@@ -62,12 +67,18 @@ jobs:
         run: |
           sh scripts/docker/${{ matrix.service }}.sh \
             ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current }} \
+            ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current_no_v }} \
+            ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current_major_minor }} \
+            ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current_major_minor_no_v }} \
             ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:latest
 
       - name: Push image
         if: steps.changes.outputs.changed == 'true'
         run: |
           docker push ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current }}
+          docker push ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current_no_v }}
+          docker push ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current_major_minor }}
+          docker push ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current_major_minor_no_v }}
           docker push ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:latest
 
       - name: Retag previous image (no changes for this service)
@@ -75,4 +86,7 @@ jobs:
         run: |
           docker buildx imagetools create \
             -t ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current }} \
+            -t ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current_no_v }} \
+            -t ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current_major_minor }} \
+            -t ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.current_major_minor_no_v }} \
             ghcr.io/${{ steps.owner.outputs.name }}/chiwawa-${{ matrix.service }}:${{ steps.tags.outputs.previous }}
