@@ -9,7 +9,6 @@
     "dev": "bunx --bun vite dev --port 80",
     "generate-routes": "tsr generate",
     "gr": "bun run generate-routes",
-    "proto:compile": "bunx protoc -I=../proto/v1 --ts_proto_out=./src/models --ts_proto_opt=exportCommonSymbols=true ../proto/v1/*.proto",
     "build": "bunx --bun vite build",
     "preview": "vite preview",
     "test": "vitest run",
