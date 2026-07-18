@@ -1,6 +1,11 @@
-[English](./README.md) | [中文](./README.zh-TW.md)
+English | [繁體中文](./README.zh-TW.md)
+<div align="center">
+	<img src="./dashboard/public/assets/cover.webp" width="180" height="180" alt="Chiwawa Logo">
+	<h1>Chiwawa</h1>
+	<p><strong>Discord Voice Notification Bot</strong></p>
+</div>
 
-# Chiwawa - Discord Voice Notification Bot
+---
 
 Chiwawa is a Discord bot that sends **voice notifications** when users **join** or **leave** a voice channel, using Microsoft Text-to-Speech (TTS) technology. The bot allows for easy customization of notifications and TTS settings, with support for both global (admin) and user-specific configurations, managed through a web dashboard.
 

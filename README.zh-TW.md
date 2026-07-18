@@ -1,6 +1,11 @@
-[English](./README.md) | [繁體中文](./README.zh-TW.md)
+[English](./README.md) | 繁體中文
+<div align="center">
+	<img src="./dashboard/public/assets/cover.webp" width="180" height="180" alt="Chiwawa Logo">
+	<h1>Chiwawa</h1>
+	<p><strong>Discord 語音通知機器人</strong></p>
+</div>
 
-# Chiwawa - Discord 語音通知機器人
+---
 
 Chiwawa 是一個 Discord 機器人，當使用者**加入**或**離開**語音頻道時，會使用微軟的文字轉語音（TTS）技術發送**語音通知**。該機器人允許輕鬆自訂通知和 TTS 設定，並支援全域（管理員）和使用者特定的設定，可透過網頁儀表板進行管理。
 
