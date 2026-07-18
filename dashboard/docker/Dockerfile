@@ -2,17 +2,15 @@ FROM oven/bun:1.3-slim AS build
 
 WORKDIR /app
 
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+COPY . .
 
-COPY tsconfig.json tsr.config.json vite.config.ts ./
-COPY public ./public
-COPY server ./server
-COPY src ./src
+RUN cd dashboard && bun install --frozen-lockfile
 
 ENV BASE_PATH=/chiwawa/
 
-RUN bun run build
+RUN sh scripts/sync-proto.sh
+
+RUN cd dashboard && bun run build
 
 FROM oven/bun:1.3-slim
 
@@ -20,7 +18,7 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
-COPY --from=build /app/.output ./
+COPY --from=build /app/dashboard/.output ./
 
 USER bun
 

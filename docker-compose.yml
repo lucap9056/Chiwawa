@@ -1,8 +1,8 @@
 services:
   main:
     build:
-      context: ./amin
-      dockerfile: ./docker/Dockerfile
+      context: .
+      dockerfile: main/docker/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
@@ -21,8 +21,8 @@ services:
 
   dashboard:
     build:
-      context: ./dashboard
-      dockerfile: ./docker/Dockerfile
+      context: .
+      dockerfile: dashboard/docker/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
@@ -47,8 +47,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
     volumes:
       - ./proto/v1/init.sql:/docker-entrypoint-initdb.d/init.sql
       - postgres_data:/var/lib/postgresql/data
@@ -60,8 +58,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
