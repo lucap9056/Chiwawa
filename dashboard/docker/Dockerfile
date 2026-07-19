@@ -6,6 +6,8 @@ COPY . .
 
 RUN cd dashboard && bun install --frozen-lockfile
 
+COPY dashboard/docker/nitro-bun-uds-runtime.mjs dashboard/node_modules/nitro/dist/presets/bun/runtime/bun.mjs
+
 ENV BASE_PATH=/chiwawa/
 
 RUN sh scripts/sync-proto.sh
