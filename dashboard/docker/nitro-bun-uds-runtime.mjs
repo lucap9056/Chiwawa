@@ -15,6 +15,8 @@ const cert = process.env.NITRO_SSL_CERT;
 const key = process.env.NITRO_SSL_KEY;
 const unixSocket = process.env.NITRO_UNIX_SOCKET;
 const unixSocketTemp = unixSocket ? `${unixSocket}.temp` : undefined;
+const _parsedUnixSocketMode = process.env.NITRO_UNIX_SOCKET_MODE ? Number.parseInt(process.env.NITRO_UNIX_SOCKET_MODE, 8) : Number.NaN;
+const unixSocketMode = Number.isNaN(_parsedUnixSocketMode) ? 0o666 : _parsedUnixSocketMode;
 
 if (unixSocket) {
 	mkdirSync(dirname(unixSocket), { recursive: true });
@@ -53,8 +55,8 @@ const server = serve({
 trapUnhandledErrors();
 
 if (unixSocket) {
-	chmodSync(unixSocketTemp, 0o666);
-	console.log(`[nitro-bun-uds] set permissions 0666 on ${unixSocketTemp}`);
+	chmodSync(unixSocketTemp, unixSocketMode);
+	console.log(`[nitro-bun-uds] set permissions ${unixSocketMode.toString(8)} on ${unixSocketTemp}`);
 	renameSync(unixSocketTemp, unixSocket);
 	console.log(`[nitro-bun-uds] unix socket ready at: ${unixSocket}`);
 }
