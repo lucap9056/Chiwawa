@@ -183,7 +183,6 @@ export const createFakeDatabase = (): Database => ({
 
 export const createFakeCache = (): Cache => ({
     intersectGuildIds: vi.fn(async (guildIds: string[]) => Ok<string[], Error>(guildIds)),
-    delSpeech: vi.fn(async () => Ok<void, Error>(undefined)),
     saveConfig: vi.fn(async () => Ok<number, Error>(0)),
 });
 
