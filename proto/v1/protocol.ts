@@ -10,10 +10,11 @@ export const CONFIG_UPDATED_CHANNEL = "chiwawa:v1:config:updated";
 export const GUILDS_UPDATED_CHANNEL = "chiwawa:v1:guilds:updated";
 
 /**
- * Prefix for cached join/leave speech per user per guild:
- * `${SPEECH_CACHE_PREFIX}:{userId}:{guildId}:{join|leave}` -> bytes (Opus), empty = muted.
- * Guild-scoped, no invalidation channel — writers must DEL the affected pair(s) themselves.
- * Writer/Reader: main.
+ * Prefix for cached synthesized speech, content-addressed by the resolved voice model and text:
+ * `${SPEECH_CACHE_PREFIX}:{hash(voiceShortName, content)}` -> bytes (Opus).
+ * Self-invalidating: any change to the resolved voice or message text produces a different key,
+ * so no invalidation channel is needed. Entries expire via TTL.
+ * Writer/Reader: main. Dashboard does not read or write this key.
  */
 export const SPEECH_CACHE_PREFIX = "chiwawa:v1:speech";
 
