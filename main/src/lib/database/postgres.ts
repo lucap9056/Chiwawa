@@ -88,13 +88,13 @@ const newDatabase = (databaseUrl: string) =>
                     const row = rows[0];
                     return row
                         ? Some<AppConfig>({
-                            defaultJoinSuffix: row.default_join_suffix,
-                            defaultLeaveSuffix: row.default_leave_suffix,
-                            defaultVoiceModel: row.default_voice_model,
-                            ttsRegion: row.tts_region ?? undefined,
-                            ttsApiKey: row.tts_api_key ?? undefined,
-                            admins: row.admins ?? [],
-                        })
+                              defaultJoinSuffix: row.default_join_suffix,
+                              defaultLeaveSuffix: row.default_leave_suffix,
+                              defaultVoiceModel: row.default_voice_model,
+                              ttsRegion: row.tts_region ?? undefined,
+                              ttsApiKey: row.tts_api_key ?? undefined,
+                              admins: row.admins ?? [],
+                          })
                         : None<AppConfig>();
                 }),
 
