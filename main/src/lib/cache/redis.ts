@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { RedisClient } from "bun";
 import { AppConfig } from "models";
-import { buildResultAsync, match, None, type Option, type Result, Some } from "resultant.js/rustify";
+import { buildResultAsync, None, type Option, type Result, Some } from "resultant.js/rustify";
 import {
     CONFIG_UPDATED_CHANNEL,
     GUILD_IDS_KEY,
@@ -16,21 +16,13 @@ export interface CacheEvents {
     reconnected: [];
 }
 
-// hit: false means nothing cached yet. speech: None means cached as "muted".
-export type SpeechCacheLookup = { hit: false } | { hit: true; speech: Option<Uint8Array> };
-
 export interface Cache extends EventEmitter<CacheEvents> {
     syncGuildIds: (guildIds: string[]) => Promise<Result<void, Error>>;
     addGuild: (guildId: string) => Promise<Result<void, Error>>;
     removeGuild: (guildId: string) => Promise<Result<void, Error>>;
 
-    getSpeech: (userId: string, guildId: string, join: boolean) => Promise<Result<SpeechCacheLookup, Error>>;
-    setSpeech: (
-        userId: string,
-        guildId: string,
-        join: boolean,
-        speech: Option<Uint8Array>,
-    ) => Promise<Result<void, Error>>;
+    getSpeech: (modelName: string, content: string) => Promise<Result<Option<Uint8Array>, Error>>;
+    setSpeech: (modelName: string, content: string, speech: Uint8Array) => Promise<Result<void, Error>>;
     close: () => Promise<void>;
 }
 
@@ -39,8 +31,10 @@ const publishGuildEvent = (rdb: RedisClient, type: GuildEventType, guildId: stri
     return rdb.publish(GUILDS_UPDATED_CHANNEL, JSON.stringify(event));
 };
 
-const speechCacheKey = (userId: string, guildId: string, join: boolean): string =>
-    `${SPEECH_CACHE_PREFIX}:${userId}:${guildId}:${join ? "join" : "leave"}`;
+const speechCacheKey = (modelName: string, content: string): string => {
+    const raw = `${modelName}\0${content}`;
+    return `${SPEECH_CACHE_PREFIX}:${Bun.hash.xxHash64(raw).toString(36)}`;
+};
 
 const SPEECH_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
@@ -95,21 +89,19 @@ const newCache = (redisUrl: string) =>
                     await publishGuildEvent(rdb, "leave", guildId);
                 }),
 
-            getSpeech: (userId: string, guildId: string, join: boolean) =>
-                buildResultAsync(async (): Promise<SpeechCacheLookup> => {
-                    const key = speechCacheKey(userId, guildId, join);
+            getSpeech: (modelName: string, content: string) =>
+                buildResultAsync(async (): Promise<Option<Uint8Array>> => {
+                    const key = speechCacheKey(modelName, content);
                     const raw = await rdb.getBuffer(key);
                     if (raw === null) {
-                        return { hit: false };
-                    };
-
-                    return { hit: true, speech: raw.length === 0 ? None<Uint8Array>() : Some(raw) };
+                        return None<Uint8Array>();
+                    }
+                    return Some(raw);
                 }),
 
-            setSpeech: (userId: string, guildId: string, join: boolean, speech: Option<Uint8Array>) =>
+            setSpeech: (modelName: string, content: string, speech: Uint8Array) =>
                 buildResultAsync(async () => {
-                    const value = match(speech, { Some: (buf) => buf, None: () => new Uint8Array(0) });
-                    await rdb.set(speechCacheKey(userId, guildId, join), value, "EX", SPEECH_CACHE_TTL_SECONDS);
+                    await rdb.set(speechCacheKey(modelName, content), speech, "EX", SPEECH_CACHE_TTL_SECONDS);
                 }),
 
             close: async () => {
