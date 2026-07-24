@@ -1,19 +1,21 @@
+import type { Cache } from "lib/cache";
 import type { AppConfig } from "models";
-import { buildResultAsync, matchAsync, None, type Option, type Result, Some } from "resultant.js/rustify";
+import { buildResultAsync, match, matchAsync, None, Ok, type Option, type Result, Some } from "resultant.js/rustify";
 
 interface Context {
     region: string;
     apiKey: string;
     languages: Languages;
+    cache: Option<Cache>;
 }
 
 const getRegion = (config: AppConfig) => config.ttsRegion || "";
 const getApiKey = (config: AppConfig) => config.ttsApiKey || "";
 
-const createContext = (config: AppConfig, languages: Languages): Context => {
+const createContext = (config: AppConfig, languages: Languages, cache: Option<Cache>): Context => {
     const region = getRegion(config);
     const apiKey = getApiKey(config);
-    return { region, apiKey, languages };
+    return { region, apiKey, languages, cache };
 };
 
 export interface TTSMessage {
@@ -92,40 +94,66 @@ const getTTSMessageLanguage = ({ languages }: Context, language: string): Langua
 const getTTSMessageVoiceModel = (language: Language, voiceName: string): VoiceModel =>
     language[voiceName] || Object.values(language)[0];
 
+const lookupCachedSpeech = async (
+    cache: Option<Cache>,
+    shortName: string,
+    content: string,
+): Promise<Option<Uint8Array>> =>
+    cache.andThenAsync(async (c) => {
+        const result = await c.getSpeech(shortName, content);
+        return result.unwrapOrElse((err) => {
+            console.error(`microsoft-tts: speech cache lookup failed: ${err.message}`);
+            return None<Uint8Array>();
+        })
+    });
+
 const fetchSpeech = (
-    { region, apiKey }: Context,
+    { region, apiKey, cache }: Context,
     { Locale, ShortName }: VoiceModel,
     content: string,
 ): Promise<Result<Uint8Array, Error>> =>
-    buildResultAsync(async () => {
-        const body = `
+    lookupCachedSpeech(cache, ShortName, content).then((cachedSpeech) => {
+        return match(cachedSpeech, {
+            Some: (s) => Promise.resolve(Ok(s)),
+            None: () =>
+                buildResultAsync(async () => {
+                    const body = `
 <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${Locale}">
     <voice name="${ShortName}">${content}</voice>
 </speak>
 `;
-        const response = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-            method: "POST",
-            body,
-            headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Ocp-Apim-Subscription-Key": apiKey,
-                "Content-Type": "application/ssml+xml",
-                "X-Microsoft-OutputFormat": "ogg-48khz-16bit-mono-opus",
-                "User-Agent": "Chiwawa",
-            },
-        });
+                    const response = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+                        method: "POST",
+                        body,
+                        headers: {
+                            Authorization: `Bearer ${apiKey}`,
+                            "Ocp-Apim-Subscription-Key": apiKey,
+                            "Content-Type": "application/ssml+xml",
+                            "X-Microsoft-OutputFormat": "ogg-48khz-16bit-mono-opus",
+                            "User-Agent": "Chiwawa",
+                        },
+                    });
 
-        return response.bytes();
+                    const speech = await response.bytes();
+
+                    cache.mapAsync(async (c) => {
+                        const result = await c.setSpeech(ShortName, content, speech);
+                        result.mapErr((err) => console.error(`microsoft-tts: failed to cache speech: ${err.message}`));
+                    });
+
+                    return speech;
+                }),
+        });
     });
 
 export interface MicrosoftTTS {
     fetchSpeech: (message: TTSMessage) => Promise<Result<Uint8Array, Error>>;
 }
 
-const initializeTTS = async (config: AppConfig): Promise<Option<MicrosoftTTS>> => {
+const initializeTTS = async (config: AppConfig, cache: Option<Cache>): Promise<Option<MicrosoftTTS>> => {
     return matchAsync(getLanguages(config), {
         Ok(value) {
-            const ctx = createContext(config, value);
+            const ctx = createContext(config, value, cache);
 
             return Some<MicrosoftTTS>({
                 fetchSpeech: async (message: TTSMessage) => {
