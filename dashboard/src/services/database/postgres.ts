@@ -16,7 +16,6 @@ export interface Database {
     setAppConfig: (config: AppConfig) => Promise<Result<void, Error>>;
     getUserSpeechNotice: (userId: string, guildId?: string) => Promise<Result<SpeechNotice, Error>>;
     setUserSpeechNotice: (userId: string, notice: SpeechNotice, guildId?: string) => Promise<Result<void, Error>>;
-    getUserInheritGlobalGuildIds: (userId: string) => Promise<Result<string[], Error>>;
 }
 
 const APP_CONFIG_ROW_ID = "0";
@@ -144,18 +143,6 @@ const newDatabase = (sql: SQL) => ({
                     `;
 
             return toSpeechNotice(rows[0]);
-        }),
-
-    getUserInheritGlobalGuildIds: (userId: string) =>
-        buildResultAsync(async () => {
-            const uid = parseSnowflake("user id", userId);
-            const rows = await sql<{ guild_id: string }[]>`
-                    SELECT ugn.guild_id
-                    FROM user_guild_notices ugn
-                    JOIN speech_notices sn ON sn.id = ugn.speech_notice_id
-                    WHERE ugn.user_config_id = ${uid} AND sn.inherit_global = true
-                    `;
-            return rows.map((row) => row.guild_id);
         }),
 
     setUserSpeechNotice: (userId: string, notice: SpeechNotice, guildId?: string) =>

@@ -178,7 +178,6 @@ export const createFakeDatabase = (): Database => ({
     setAppConfig: vi.fn(async () => Ok<void, Error>(undefined)),
     getUserSpeechNotice: vi.fn(async () => Ok<SpeechNotice, Error>(fakeSpeechNotice())),
     setUserSpeechNotice: vi.fn(async () => Ok<void, Error>(undefined)),
-    getUserInheritGlobalGuildIds: vi.fn(async () => Ok<string[], Error>([])),
 });
 
 export const createFakeCache = (): Cache => ({

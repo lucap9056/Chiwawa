@@ -122,30 +122,6 @@ describe("services/database/postgres", () => {
         });
     });
 
-    describe("getUserInheritGlobalGuildIds", () => {
-        it("returns the guild ids whose guild-specific notice inherits the global one", async () => {
-            const fake = createFakeSql();
-            fake.queueResponse([{ guild_id: "100" }, { guild_id: "200" }]);
-            const db = database.newDatabase(asSql(fake));
-
-            const result = await db.getUserInheritGlobalGuildIds("42");
-
-            expect(result.isOk()).toBe(true);
-            expect(result.unwrap()).toEqual(["100", "200"]);
-            expect(fake.calls[0].text).toContain("inherit_global = true");
-        });
-
-        it("returns Err (not a thrown exception) for a non-numeric userId", async () => {
-            const fake = createFakeSql();
-            const db = database.newDatabase(asSql(fake));
-
-            const result = await db.getUserInheritGlobalGuildIds("not-a-snowflake");
-
-            expect(result.isErr()).toBe(true);
-            expect(result.unwrapErr().message).toContain("invalid user id");
-        });
-    });
-
     describe("setUserSpeechNotice", () => {
         it("global notice: inserts a new speech_notices row when the user has none yet", async () => {
             const fake = createFakeSql();
