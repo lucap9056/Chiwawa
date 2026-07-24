@@ -110,27 +110,9 @@ export const updateUserSpeechNoticeHandler = resultHandler(
                 return Err<boolean, ErrorCode>(ErrorCode.PROFILE_GUILD_NOT_JOINED);
             }
 
-            const updateResult = await state.db
+            return state.db
                 .setUserSpeechNotice(userId, speechNotice, guildId)
                 .then((r) => r.map(() => true).mapErr(() => ErrorCode.PROFILE_SPEECH_NOTICE_UPDATE_FAILED));
-            if (updateResult.isErr()) {
-                return updateResult;
-            }
-
-            if (guildId) {
-                state.cache.delSpeech(userId, [guildId]);
-            } else {
-                state.db
-                    .getUserInheritGlobalGuildIds(userId)
-                    .then((r) => {
-                        return r.andThenAsync((guildIds) => state.cache.delSpeech(userId, guildIds));
-                    })
-                    .then((r) => {
-                        r.mapErr((err) => console.error("Failed to invalidate speech cache:", err));
-                    });
-            }
-
-            return updateResult;
         }),
 );
 

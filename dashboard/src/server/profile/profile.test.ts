@@ -180,36 +180,6 @@ describe("updateUserSpeechNoticeHandler", () => {
         expect(state.db.setUserSpeechNotice).not.toHaveBeenCalled();
     });
 
-    it("invalidates the speech cache after a successful guild-scoped update", async () => {
-        const state = createFakeState();
-        const session = fakeSession({ userId: "1", guildIds: ["100"] });
-
-        const message = await updateUserSpeechNoticeHandler({
-            context: { state, session: Ok(session) },
-            data: { speechNotice: fakeSpeechNotice(), guildId: "100" },
-        });
-
-        expect(message.success).toBe(true);
-        expect(state.cache.delSpeech).toHaveBeenCalledWith("1", ["100"]);
-    });
-
-    it("invalidates the speech cache for every guild inheriting the global notice on a global (no guildId) update", async () => {
-        const state = createFakeState();
-        const session = fakeSession({ userId: "1", guildIds: ["100", "200"] });
-        vi.mocked(state.db.getUserInheritGlobalGuildIds).mockResolvedValueOnce(Ok(["100", "200"]));
-
-        const message = await updateUserSpeechNoticeHandler({
-            context: { state, session: Ok(session) },
-            data: { speechNotice: fakeSpeechNotice() },
-        });
-
-        expect(message.success).toBe(true);
-        expect(state.db.getUserInheritGlobalGuildIds).toHaveBeenCalledWith("1");
-        await vi.waitFor(() => {
-            expect(state.cache.delSpeech).toHaveBeenCalledWith("1", ["100", "200"]);
-        });
-    });
-
     it("returns PROFILE_SPEECH_NOTICE_UPDATE_FAILED when the db write fails", async () => {
         const state = createFakeState();
         vi.mocked(state.db.setUserSpeechNotice).mockResolvedValueOnce(Err(new Error("db down")));
