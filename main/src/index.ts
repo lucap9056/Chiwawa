@@ -74,7 +74,7 @@ const setupAppDependencies = (): Promise<Result<AppDependencies, Error>> =>
 
         console.log(`main: redis: ${optionStateText(redis.isSome())}`);
 
-        const tts = await microsoftTTS.initializeTTS(appConfig);
+        const tts = await microsoftTTS.initializeTTS(appConfig, redis);
 
         console.log(`main: tts: ${optionStateText(tts.isSome())}`);
 
@@ -88,7 +88,7 @@ const setupAppDependencies = (): Promise<Result<AppDependencies, Error>> =>
                 const { region: n1, apiKey: n2, defaultVoiceModel: n3 } = state.appConfig.tts();
                 if (o1 !== n1 || o2 !== n2 || o3 !== n3) {
                     const myUpdateId = ++currentUpdateId;
-                    microsoftTTS.initializeTTS(newConfig).then((updatedTTS) => {
+                    microsoftTTS.initializeTTS(newConfig, Some(r)).then((updatedTTS) => {
                         if (myUpdateId === currentUpdateId) {
                             state.updateTTS(updatedTTS);
                         }
