@@ -43,7 +43,7 @@ const VoiceModelSelector: React.FC<Props> = ({ message, currentLanguage, current
             }
             return;
         }
-        
+
         if (tts.loaded) {
             setLanguage(defaultVoiceModel.Locale);
             setVoiceModel(defaultVoiceModel);
