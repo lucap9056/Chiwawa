@@ -51,77 +51,29 @@ const removeVoiceConnection = (connections: Connections, guildId: string): void 
 const isSelfInVoiceChannel = (ctx: VoiceStateUpdateContext, channel: GuildChannel) =>
     channel.members.has(ctx.client.user.id);
 
-// speech: None is cached too — it means "muted", so a muted member skips Postgres/TTS
-// on every future join/leave.
-const cacheSpeech = async (
-    ctx: VoiceStateUpdateContext,
-    member: GuildMember,
-    join: boolean,
-    speech: Option<Uint8Array>,
-): Promise<void> => {
-    ctx.appState.cache.mapAsync(async (cache) => {
-        const result = await cache.setSpeech(member.user.id, member.guild.id, join, speech);
-        result.mapErr((err) => console.error(`voice-state-update: failed to cache speech: ${err.message}`));
-    });
-};
-
-const synthesizeSpeech = async (
+const resolveSpeech = async (
     ctx: VoiceStateUpdateContext,
     member: GuildMember,
     join: boolean,
 ): Promise<Option<Uint8Array>> => {
-    const { appState } = ctx;
-    const message = await generateMessages(appState, member, join);
-
-    return match(message, {
-        async None() {
-            return None<Uint8Array>();
-        },
-        async Some(msg) {
-            return match(appState.tts, {
-                None: async () => {
-                    return None<Uint8Array>();
-                },
+    return matchAsync(generateMessages(ctx.appState, member, join), {
+        None: async () => None<Uint8Array>(),
+        Some: async (message) => {
+            return match(ctx.appState.tts, {
+                None: async () => None<Uint8Array>(),
                 Some: async (tts) => {
-                    return matchAsync(tts.fetchSpeech(msg), {
+                    return matchAsync(tts.fetchSpeech(message), {
                         Ok: (speech) => Some<Uint8Array>(speech),
                         Err: (err) => {
                             console.error(err);
                             return None<Uint8Array>();
-                        }
-                    })
+                        },
+                    });
                 },
             });
         },
     });
 };
-
-const resolveSpeech = async (
-    ctx: VoiceStateUpdateContext,
-    member: GuildMember,
-    join: boolean,
-): Promise<Option<Uint8Array>> => match(ctx.appState.cache, {
-    None: () => synthesizeSpeech(ctx, member, join),
-    async Some(cache) {
-        return matchAsync(cache.getSpeech(member.user.id, member.guild.id, join), {
-            async Ok(entry) {
-                if (entry.hit) {
-                    return entry.speech;
-                }
-                const speech = await synthesizeSpeech(ctx, member, join);
-                cacheSpeech(ctx, member, join, speech).catch((err) => {
-                    console.error(err);
-                });
-                return speech;
-            },
-            async Err(err) {
-                console.error(`voice-state-update: speech cache lookup failed: ${err.message}`);
-                return synthesizeSpeech(ctx, member, join);
-            },
-        });
-    },
-});
-
 
 const joinVoiceChannel = async (ctx: VoiceStateUpdateContext, channel: VoiceBasedChannel, member: GuildMember) => {
     match(getVoiceConnection(ctx.connections, channel.guildId), {
@@ -278,7 +230,7 @@ const handler = (ctx: VoiceStateUpdateContext) => {
                 return;
             }
         },
-        None() { },
+        None() {},
     });
 };
 
