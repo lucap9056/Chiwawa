@@ -1,6 +1,6 @@
 import { Err, type Result } from "resultant.js/rustify";
 import { ErrorCode } from "#/errors";
-import type { AppConfig, SpeechNotice } from "#/models";
+import { type AppConfig, type SpeechNotice, validateAppConfig, validateSpeechNotice } from "#/models";
 import { resultHandler } from "#/server/middlware";
 import type { State } from "#/services";
 import { isNotFound } from "#/services/database";
@@ -104,16 +104,18 @@ interface UpdateUserSpeechNoticeCtx extends SessionCtx {
 
 export const updateUserSpeechNoticeHandler = resultHandler(
     ({ context: { state, session: sessionResult }, data: { speechNotice, guildId } }: UpdateUserSpeechNoticeCtx) =>
-        sessionResult.andThenAsync(async (session) => {
-            const { userId } = session;
-            if (guildId && !session.guildIds.includes(guildId)) {
-                return Err<boolean, ErrorCode>(ErrorCode.PROFILE_GUILD_NOT_JOINED);
-            }
+        sessionResult.andThenAsync(async (session) =>
+            validateSpeechNotice(speechNotice).andThenAsync(async (speechNotice) => {
+                const { userId } = session;
+                if (guildId && !session.guildIds.includes(guildId)) {
+                    return Err<boolean, ErrorCode>(ErrorCode.PROFILE_GUILD_NOT_JOINED);
+                }
 
-            return state.db
-                .setUserSpeechNotice(userId, speechNotice, guildId)
-                .then((r) => r.map(() => true).mapErr(() => ErrorCode.PROFILE_SPEECH_NOTICE_UPDATE_FAILED));
-        }),
+                return state.db
+                    .setUserSpeechNotice(userId, speechNotice, guildId)
+                    .then((r) => r.map(() => true).mapErr(() => ErrorCode.PROFILE_SPEECH_NOTICE_UPDATE_FAILED));
+            }),
+        ),
 );
 
 interface UpdateAppConfigCtx extends SessionCtx {
@@ -122,25 +124,27 @@ interface UpdateAppConfigCtx extends SessionCtx {
 
 export const updateAppConfigHandler = resultHandler(
     ({ context: { state, session: sessionResult }, data: { appConfig } }: UpdateAppConfigCtx) =>
-        sessionResult.andThenAsync(async (session) => {
-            const { isAdmin } = session;
-            if (!isAdmin) {
-                return Err<boolean, ErrorCode>(ErrorCode.PROFILE_ADMIN_REQUIRED);
-            }
-            const res = await state.db.setAppConfig(appConfig);
+        sessionResult.andThenAsync(async (session) =>
+            validateAppConfig(appConfig).andThenAsync(async (appConfig) => {
+                const { isAdmin } = session;
+                if (!isAdmin) {
+                    return Err<boolean, ErrorCode>(ErrorCode.PROFILE_ADMIN_REQUIRED);
+                }
+                const res = await state.db.setAppConfig(appConfig);
 
-            if (res.isOk()) {
-                Promise.all([
-                    state.updateTTS(appConfig.ttsRegion || "", appConfig.ttsApiKey || ""),
-                    state.cache.saveConfig(appConfig),
-                ]).then(([ttsRes, cfgRes]) => {
-                    ttsRes.mapErr((err) => console.error("Failed to update TTS credentials:", err));
-                    cfgRes.mapErr((err) => console.error("Failed to publish app config to cache:", err));
-                });
-            }
+                if (res.isOk()) {
+                    Promise.all([
+                        state.updateTTS(appConfig.ttsRegion || "", appConfig.ttsApiKey || ""),
+                        state.cache.saveConfig(appConfig),
+                    ]).then(([ttsRes, cfgRes]) => {
+                        ttsRes.mapErr((err) => console.error("Failed to update TTS credentials:", err));
+                        cfgRes.mapErr((err) => console.error("Failed to publish app config to cache:", err));
+                    });
+                }
 
-            return res.map(() => true).mapErr(() => ErrorCode.PROFILE_APP_CONFIG_UPDATE_FAILED);
-        }),
+                return res.map(() => true).mapErr(() => ErrorCode.PROFILE_APP_CONFIG_UPDATE_FAILED);
+            }),
+        ),
 );
 
 interface GetGuildMemberCtx extends SessionCtx {
