@@ -19,7 +19,7 @@ vi.mock("@tanstack/react-start/server", () => ({
 
 vi.mock("#/services", () => ({ state: {} }));
 
-import { codeChallengeSchema, getLoginUrlHandler, loginHandler, logoutHandler } from "./handlers";
+import { getLoginUrlHandler, loginHandler, logoutHandler, validateCodeChallenge } from "./handlers";
 
 const VALID_CODE_CHALLENGE = "a".repeat(43);
 const VALID_STATE = "b".repeat(22);
@@ -36,11 +36,11 @@ describe("server/authorization", () => {
         vi.unstubAllGlobals();
     });
 
-    describe("codeChallengeSchema (detail validation, checked inside the handler)", () => {
+    describe("validateCodeChallenge (detail validation, checked inside the handler)", () => {
         it("rejects a code_challenge of the wrong length or charset", () => {
-            expect(codeChallengeSchema.safeParse(VALID_CODE_CHALLENGE).success).toBe(true);
-            expect(codeChallengeSchema.safeParse("too-short").success).toBe(false);
-            expect(codeChallengeSchema.safeParse(`!${"a".repeat(42)}`).success).toBe(false);
+            expect(validateCodeChallenge(VALID_CODE_CHALLENGE).isOk()).toBe(true);
+            expect(validateCodeChallenge("too-short").isOk()).toBe(false);
+            expect(validateCodeChallenge(`!${"a".repeat(42)}`).isOk()).toBe(false);
         });
     });
 

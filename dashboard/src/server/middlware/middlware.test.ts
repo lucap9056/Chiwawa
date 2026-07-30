@@ -1,11 +1,10 @@
 import { Err, Ok } from "resultant.js/rustify";
 import { describe, expect, it, vi } from "vitest";
-import { z } from "zod";
 import { ErrorCode } from "#/errors";
 
 vi.mock("#/services", () => ({ state: {} }));
 
-import { resultHandler, validateDetails } from "./index";
+import { resultHandler } from "./index";
 
 describe("resultHandler", () => {
     it("maps Ok(undefined) to a success envelope carrying the value", async () => {
@@ -39,21 +38,5 @@ describe("resultHandler", () => {
         const message = await handler(undefined);
 
         expect(message).toEqual({ success: false, error: ErrorCode.SESSION_NOT_FOUND });
-    });
-});
-
-describe("validateDetails", () => {
-    const schema = z.string().length(3, "must be exactly 3 characters");
-
-    it("returns Ok with the parsed value when the schema is satisfied", () => {
-        const result = validateDetails(schema, "abc");
-
-        expect(result).toEqual(Ok("abc"));
-    });
-
-    it("returns Err(VALIDATION_FAILED) when the schema rejects the value", () => {
-        const result = validateDetails(schema, "too-long");
-
-        expect(result).toEqual(Err(ErrorCode.VALIDATION_FAILED));
     });
 });

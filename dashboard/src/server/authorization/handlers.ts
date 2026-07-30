@@ -1,15 +1,15 @@
 import { Err, Ok, type Result } from "resultant.js/rustify";
-import { z } from "zod";
 import { ErrorCode } from "#/errors";
-import { resultHandler, validateDetails } from "#/server/middlware";
+import { resultHandler } from "#/server/middlware";
 import { createSession, delSession, getOAuth2State, setOAuth2State } from "#/server/sessions";
 import type { State } from "#/services";
 import type { Session } from "#/services/sessions";
 
-export const codeChallengeSchema = z
-    .string()
-    .length(43, "code_challenge must be exactly 43 characters long")
-    .regex(/^[A-Za-z0-9\-_]+$/, "code_challenge must be valid Base64URL characters (letters, digits, - and _ only)");
+const isCodeChallenge = (value: unknown): value is string =>
+    typeof value === "string" && value.length === 43 && /^[A-Za-z0-9\-_]+$/.test(value);
+
+export const validateCodeChallenge = (data: unknown): Result<string, ErrorCode> =>
+    isCodeChallenge(data) ? Ok(data) : Err(ErrorCode.VALIDATION_FAILED);
 
 interface GetLoginUrlCtx {
     context: { state: State };
@@ -17,7 +17,7 @@ interface GetLoginUrlCtx {
 }
 
 export const getLoginUrlHandler = resultHandler(async ({ context: { state }, data }: GetLoginUrlCtx) =>
-    validateDetails(codeChallengeSchema, data.codeChallenge).andThen((codeChallenge) => {
+    validateCodeChallenge(data.codeChallenge).andThen((codeChallenge) => {
         const oauth2State = Bun.randomUUIDv7("base64url");
         return setOAuth2State(oauth2State).map(() => {
             const oauth2Url = state.oauth2Provider.getAuthorizeUrl(oauth2State, codeChallenge);
@@ -26,18 +26,33 @@ export const getLoginUrlHandler = resultHandler(async ({ context: { state }, dat
     }),
 );
 
-const loginDataSchema = z.object({
-    oauth2Code: z.string().min(16, "code must be at least 16 characters long"),
-    oauth2State: z.string().length(22, "state must be exactly 22 characters long"),
-    codeVerifier: z
-        .string()
-        .min(43, "code_verifier must be at least 43 characters long")
-        .max(128, "code_verifier must be at most 128 characters long")
-        .regex(
-            /^[A-Za-z0-9._~-]+$/,
-            "code_verifier may only contain letters, digits, underscore (_), period (.), hyphen (-), and tilde (~)",
-        ),
-});
+const isCodeVerifier = (value: unknown): value is string =>
+    typeof value === "string" && value.length >= 43 && value.length <= 128 && /^[A-Za-z0-9._~-]+$/.test(value);
+
+interface LoginData {
+    oauth2Code: string;
+    oauth2State: string;
+    codeVerifier: string;
+}
+
+const validateLoginData = (data: unknown): Result<LoginData, ErrorCode> => {
+    if (typeof data !== "object" || data === null) {
+        return Err(ErrorCode.VALIDATION_FAILED);
+    }
+    const { oauth2Code, oauth2State, codeVerifier } = data as Record<string, unknown>;
+
+    if (
+        typeof oauth2Code !== "string" ||
+        oauth2Code.length < 16 ||
+        typeof oauth2State !== "string" ||
+        oauth2State.length !== 22 ||
+        !isCodeVerifier(codeVerifier)
+    ) {
+        return Err(ErrorCode.VALIDATION_FAILED);
+    }
+
+    return Ok({ oauth2Code, oauth2State, codeVerifier });
+};
 
 interface LoginCtx {
     context: { state: State };
@@ -45,7 +60,7 @@ interface LoginCtx {
 }
 
 export const loginHandler = resultHandler(({ context: { state }, data }: LoginCtx) =>
-    validateDetails(loginDataSchema, data).andThenAsync(async ({ oauth2Code, oauth2State, codeVerifier }) =>
+    validateLoginData(data).andThenAsync(async ({ oauth2Code, oauth2State, codeVerifier }) =>
         getOAuth2State()
             .andThen((r) => r.okOr<ErrorCode>(ErrorCode.AUTH_STATE_COOKIE_MISSING))
             .andThen((storedState) =>

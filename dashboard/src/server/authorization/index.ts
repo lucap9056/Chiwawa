@@ -1,11 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import { serverStateMiddleware, sessionMiddleware } from "#/server/middlware";
 import { getLoginUrlHandler, loginHandler, logoutHandler } from "./handlers";
 
 export const getLoginUrl = createServerFn()
     .middleware([serverStateMiddleware])
-    .validator(z.object({ codeChallenge: z.string() }))
+    .validator((data: { codeChallenge: string }) => data)
     .handler(getLoginUrlHandler);
 
 export const generateCodeVerifier = () =>
@@ -13,7 +12,7 @@ export const generateCodeVerifier = () =>
 
 export const login = createServerFn()
     .middleware([serverStateMiddleware])
-    .validator(z.object({ oauth2Code: z.string(), oauth2State: z.string(), codeVerifier: z.string() }))
+    .validator((data: { oauth2Code: string; oauth2State: string; codeVerifier: string }) => data)
     .handler(loginHandler);
 
 export const logout = createServerFn().middleware([sessionMiddleware]).handler(logoutHandler);
