@@ -44,7 +44,7 @@ function Content() {
         if (tts.loaded) return;
 
         const loading = loader.append();
-        const loadingToast = toast.loading(t("app.initializing"));
+        const loadingToast = toast.loading(t("app.initializing", { defaultValue: "Initializing..." }));
 
         return () => {
             loading.remove();
