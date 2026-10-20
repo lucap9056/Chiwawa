@@ -18,8 +18,6 @@ type ProfileOutcome = { status: "success"; profile: Profile } | { status: "error
 
 interface LoaderData {
     profileOutcome: ProfileOutcome;
-    // Raw catalog, independent of whether the profile fetch itself succeeded — resolving
-    // it against a defaultVoiceModel happens in Body() using the live profile, not here.
     languages: Languages;
 }
 
@@ -57,10 +55,6 @@ function Content() {
     return <Dashboard profile={profile} />;
 }
 
-// Reads the live profile context (not the SSR loader's snapshot) so a successful
-// login/retry after an unauthenticated SSR render switches straight to Content.
-// TTSProvider only mounts once profile status is "success", so TTS never loads
-// for a profile that ended up in an error/unauthenticated state.
 function Body() {
     const { profile, request } = useProfile();
     const { languages } = Route.useLoaderData();

@@ -76,7 +76,6 @@ const VoiceModelSelector: React.FC<Props> = ({ message, currentLanguage, current
                 URL.revokeObjectURL(url);
             };
         } catch (error) {
-            // playback failures are non-fatal, matches old behavior
             console.error("Failed to play voice preview:", error);
         }
     };

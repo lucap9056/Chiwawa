@@ -96,8 +96,6 @@ export const checkSession = (
                 .del(session.sessionId)
                 .then((r) => r.mapErr<ErrorCode>(() => ErrorCode.SESSION_DELETE_FAILED));
 
-            // On successful cleanup, still report the session as expired — that's
-            // the actual outcome; a delete failure reports its own code instead.
             return delResult
                 .andThen(deleteSessionIdCookie)
                 .andThen(() => Err<Session, ErrorCode>(ErrorCode.SESSION_EXPIRED));

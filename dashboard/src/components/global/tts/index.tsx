@@ -41,9 +41,6 @@ interface PreviousBlob {
 
 const EMPTY_ISSUE_TOKEN: IssueToken = { region: "", token: "", expiresAt: 0 };
 
-// Fallback used before the real catalog loads, and whenever a defaultVoiceModel can't be
-// matched in it — a real, broadly-available voice rather than an empty ShortName, so TTS
-// still actually works in that case instead of silently failing to synthesize anything.
 const DEFAULT_LANGUAGES: Languages = {
     default: {
         default: {

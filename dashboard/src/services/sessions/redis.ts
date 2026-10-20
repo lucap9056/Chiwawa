@@ -22,8 +22,6 @@ export interface Sessions {
 
 const sessionKey = (sessionId: string): string => `${SESSION_KEY_PREFIX}${sessionId}`;
 
-// EXAT (not EX) so update() can persist a session's own expireAt as the single
-// source of truth for its TTL, instead of separately tracking elapsed/remaining time.
 const writeSession = (rdb: RedisClient, session: Session): Promise<"OK"> =>
     rdb.set(
         sessionKey(session.sessionId),

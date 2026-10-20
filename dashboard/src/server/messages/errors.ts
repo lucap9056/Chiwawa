@@ -1,6 +1,3 @@
-// Server-side text for each ErrorCode, for logs/debugging only — the client
-// receives just the code (see #/server/messages) and owns its own display text.
-
 import type { ErrorCode } from "#/errors";
 
 const ERROR_MESSAGES: Record<ErrorCode, string> = {
@@ -57,8 +54,7 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
     VALIDATION_FAILED: "Request validation failed.",
     INTERNAL_ERROR: "Internal server error.",
 
-    // Client-side — never produced server-side, listed here only to satisfy
-    // this Record's exhaustiveness over ErrorCode.
+    // Client-side
     NETWORK_UNREACHABLE: "Could not reach the server.",
     NETWORK_ABORTED: "Request was aborted.",
     NETWORK_INVALID_RESPONSE: "Server response could not be parsed.",

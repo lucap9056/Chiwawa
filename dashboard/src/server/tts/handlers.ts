@@ -23,10 +23,6 @@ interface GetVoiceModelsCtx {
     context: { state: State; session: Result<Session, ErrorCode> };
 }
 
-// Reads the server's cached catalog (see initializeTTS) — only the first caller after a
-// (re)start pays for the network round-trip, everyone after gets the cached copy. Unlike
-// getAccessTokenHandler there's no need to gate this behind guild access; it's static
-// metadata, not a usable Microsoft credential.
 export const getVoiceModelsHandler = resultHandler(
     ({ context: { state, session: sessionResult } }: GetVoiceModelsCtx) =>
         sessionResult.andThenAsync(async () => Ok<Languages, ErrorCode>(await state.tts.getLanguages())),

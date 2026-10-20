@@ -7,8 +7,6 @@ import { state } from "#/services";
 
 export const serverStateMiddleware = createMiddleware().server(async ({ next }) => next({ context: { state } }));
 
-// `session` is a Result, not a bare Session, so auth failures flow into
-// resultHandler's envelope like any other domain error instead of throwing.
 export const sessionMiddleware = createMiddleware()
     .middleware([serverStateMiddleware])
     .server(async ({ context: { state }, next }) => {

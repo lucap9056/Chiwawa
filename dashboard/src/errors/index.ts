@@ -1,7 +1,3 @@
-// Stable error codes for every error a client can receive from a server function.
-// Handlers compose `Result<V, ErrorCode>` (see #/server/middlware's resultHandler)
-// instead of throwing, so the client can branch on a code instead of parsing message strings.
-
 export const ErrorCode = {
     // OAuth2 / authorization (src/server/authorization)
     AUTH_STATE_COOKIE_SET_FAILED: "AUTH_STATE_COOKIE_SET_FAILED",
