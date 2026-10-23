@@ -1,4 +1,4 @@
-FROM oven/bun:1.3-slim AS build
+FROM oven/bun:1.4-slim AS build
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ RUN sh scripts/sync-proto.sh
 
 RUN cd dashboard && bun run build
 
-FROM oven/bun:1.3-slim
+FROM oven/bun:1.4-slim
 
 ENV NODE_ENV=production
 
